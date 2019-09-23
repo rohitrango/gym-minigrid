@@ -4,10 +4,11 @@ from __future__ import division, print_function
 
 import sys
 import numpy
+import numpy as np
 import gym
 import time
 from optparse import OptionParser
-
+from matplotlib import pyplot as plt
 import gym_minigrid
 
 def main():
@@ -19,10 +20,23 @@ def main():
         help="gym environment to load",
         default='MiniGrid-MultiRoom-N6-v0'
     )
+    parser.add_option(
+            '--size',
+            type=int,
+            default=20,
+            )
+    parser.add_option(
+            '--goal_num',
+            help='set goal number',
+            type=int,
+            default=0
+            )
     (options, args) = parser.parse_args()
 
     # Load the gym environment
-    env = gym.make(options.env_name)
+    env = gym.make(options.env_name, size=options.size,  goal_num=options.goal_num, )
+    env.agent_view_size = options.size
+    env.see_through_walls = True
 
     def resetEnv():
         env.reset()
@@ -65,8 +79,15 @@ def main():
             print("unknown key %s" % keyName)
             return
 
+        obs = env.gen_obs()
+        image, dir_ = obs['image'], obs['direction']
+        image = image[:, :, 0]
+        image = np.rot90(image, -1)[:, ::-1]
+        print(image, dir_)
+        #plt.imshow(image)
+        #plt.show()
         obs, reward, done, info = env.step(action)
-
+        print(obs['direction'])
         print('step=%s, reward=%.2f' % (env.step_count, reward))
 
         if done:

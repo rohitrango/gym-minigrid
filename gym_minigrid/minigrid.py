@@ -1186,7 +1186,6 @@ class MiniGridEnv(gym.Env):
             grid.set(*agent_pos, self.carrying)
         else:
             grid.set(*agent_pos, None)
-
         return grid, vis_mask
 
     def gen_obs(self):
@@ -1208,7 +1207,7 @@ class MiniGridEnv(gym.Env):
         obs = {
             'image': image,
             'direction': self.agent_dir,
-            'mission': self.mission
+            'mission': self.mission,
         }
 
         return obs
