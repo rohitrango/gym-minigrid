@@ -6,8 +6,7 @@ from queue import deque
 import numpy as np
 import gym
 from gym import error, spaces, utils
-from .minigrid import OBJECT_TO_IDX, COLOR_TO_IDX
-from .minigrid import CELL_PIXELS
+from .minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
 
 class ReseedWrapper(gym.core.Wrapper):
     """
@@ -107,11 +106,52 @@ class ImgObsWrapper(gym.core.ObservationWrapper):
 
     def __init__(self, env):
         super().__init__(env)
-
         self.observation_space = env.observation_space.spaces['image']
 
     def observation(self, obs):
         return obs['image']
+
+class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
+    """
+    Wrapper to get a one-hot encoding of a partially observable
+    agent view as observation.
+    """
+
+    def __init__(self, env, tile_size=8):
+        super().__init__(env)
+
+        self.tile_size = tile_size
+
+        obs_shape = env.observation_space['image'].shape
+
+        # Number of bits per cell
+        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX)
+
+        self.observation_space.spaces["image"] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(obs_shape[0], obs_shape[1], num_bits),
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        img = obs['image']
+        out = np.zeros(self.observation_space.shape, dtype='uint8')
+
+        for i in range(img.shape[0]):
+            for j in range(img.shape[1]):
+                type = img[i, j, 0]
+                color = img[i, j, 1]
+                state = img[i, j, 2]
+
+                out[i, j, type] = 1
+                out[i, j, len(OBJECT_TO_IDX) + color] = 1
+                out[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
+
+        return {
+            'mission': obs['mission'],
+            'image': out
+        }
 
 class RGBImgObsWrapper(gym.core.ObservationWrapper):
     """
@@ -125,7 +165,7 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
 
         self.tile_size = tile_size
 
-        self.observation_space = spaces.Box(
+        self.observation_space.spaces['image'] = spaces.Box(
             low=0,
             high=255,
             shape=(self.env.width*tile_size, self.env.height*tile_size, 3),
@@ -134,11 +174,50 @@ class RGBImgObsWrapper(gym.core.ObservationWrapper):
 
     def observation(self, obs):
         env = self.unwrapped
-        return env.render(
+
+        rgb_img = env.render(
             mode='rgb_array',
             highlight=False,
             tile_size=self.tile_size
         )
+
+        return {
+            'mission': obs['mission'],
+            'image': rgb_img
+        }
+
+
+class RGBImgPartialObsWrapper(gym.core.ObservationWrapper):
+    """
+    Wrapper to use partially observable RGB image as the only observation output
+    This can be used to have the agent to solve the gridworld in pixel space.
+    """
+
+    def __init__(self, env, tile_size=8):
+        super().__init__(env)
+
+        self.tile_size = tile_size
+
+        obs_shape = env.observation_space['image'].shape
+        self.observation_space.spaces['image'] = spaces.Box(
+            low=0,
+            high=255,
+            shape=(obs_shape[0] * tile_size, obs_shape[1] * tile_size, 3),
+            dtype='uint8'
+        )
+
+    def observation(self, obs):
+        env = self.unwrapped
+
+        rgb_img_partial = env.get_obs_render(
+            obs['image'],
+            tile_size=self.tile_size
+        )
+
+        return {
+            'mission': obs['mission'],
+            'image': rgb_img_partial
+        }
 
 class FullyObsWrapper(gym.core.ObservationWrapper):
     """
@@ -148,7 +227,7 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
 
-        self.observation_space = spaces.Box(
+        self.observation_space.spaces["image"] = spaces.Box(
             low=0,
             high=255,
             shape=(self.env.width, self.env.height, 3),  # number of cells
@@ -164,7 +243,10 @@ class FullyObsWrapper(gym.core.ObservationWrapper):
             env.agent_dir
         ])
 
-        return full_grid
+        return {
+            'mission': obs['mission'],
+            'image': full_grid
+        }
 
 class FullyObsOneHotWrapper(gym.core.ObservationWrapper):
     """
@@ -395,13 +477,14 @@ class FlatObsWrapper(gym.core.ObservationWrapper):
 
         return obs
 
-class AgentViewWrapper(gym.core.Wrapper):
+class ViewSizeWrapper(gym.core.Wrapper):
     """
     Wrapper to customize the agent field of view size.
+    This cannot be used with fully observable wrappers.
     """
 
     def __init__(self, env, agent_view_size=7):
-        super(AgentViewWrapper, self).__init__(env)
+        super().__init__(env)
 
         # Override default view size
         env.unwrapped.agent_view_size = agent_view_size
