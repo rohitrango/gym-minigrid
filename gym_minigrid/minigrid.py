@@ -1141,7 +1141,8 @@ class MiniGridEnv(gym.Env):
 
         # Done action (not used by default)
         elif action == self.actions.done:
-            pass
+            # pass 
+            done = True
 
         else:
             assert False, "unknown action"
