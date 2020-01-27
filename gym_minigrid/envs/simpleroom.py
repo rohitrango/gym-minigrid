@@ -53,6 +53,6 @@ class SimpleRoom(MiniGridEnv):
         self.mission = "get to the green goal square"
 
 register(
-    id='SimpleRoom-v0'
-    entry_point='gym_minigrid.envs:SimpleRoom'
+    id='MiniGrid-SimpleRoom-v0',
+    entry_point='gym_minigrid.envs:SimpleRoom',
 )

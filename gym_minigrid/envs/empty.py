@@ -11,9 +11,11 @@ class EmptyEnv(MiniGridEnv):
         size=8,
         agent_start_pos=(1,1),
         agent_start_dir=0,
+        sizetop=None,
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
+        self.sizetop = sizetop
 
         super().__init__(
             grid_size=size,
@@ -21,6 +23,7 @@ class EmptyEnv(MiniGridEnv):
             # Set this to True for maximum speed
             see_through_walls=True
         )
+
 
     def _gen_grid(self, width, height):
         # Create an empty grid
@@ -37,7 +40,7 @@ class EmptyEnv(MiniGridEnv):
             self.agent_pos = self.agent_start_pos
             self.agent_dir = self.agent_start_dir
         else:
-            self.place_agent()
+            self.place_agent(size=self.sizetop)
 
         self.mission = "get to the green goal square"
 
@@ -56,6 +59,10 @@ class EmptyEnv6x6(EmptyEnv):
 class EmptyRandomEnv6x6(EmptyEnv):
     def __init__(self):
         super().__init__(size=6, agent_start_pos=None)
+
+class EmptyRandomEnv10x10(EmptyEnv):
+    def __init__(self):
+        super().__init__(size=10, agent_start_pos=None, sizetop=(4, 4))
 
 class EmptyEnv16x16(EmptyEnv):
     def __init__(self):
@@ -79,6 +86,11 @@ register(
 register(
     id='MiniGrid-Empty-Random-6x6-v0',
     entry_point='gym_minigrid.envs:EmptyRandomEnv6x6'
+)
+
+register(
+    id='MiniGrid-Empty-Random-10x10-v0',
+    entry_point='gym_minigrid.envs:EmptyRandomEnv10x10'
 )
 
 register(
