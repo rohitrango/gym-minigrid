@@ -647,6 +647,26 @@ class MiniGridEnv(gym.Env):
         # Done completing task
         done = 6
 
+    class ExtendedActions(IntEnum):
+        # Turn left, turn right, move forward
+        left = 0
+        right = 1
+        forward = 2
+
+        # Pick up an object
+        pickup = 3
+        # Drop an object
+        drop = 4
+        # Toggle/activate an object
+        toggle = 5
+
+        # Done completing task
+        done = 6
+        # Strafe actions
+        strafe_left = 7
+        strafe_right = 8
+
+
     def __init__(
         self,
         grid_size=None,
@@ -654,6 +674,7 @@ class MiniGridEnv(gym.Env):
         height=None,
         max_steps=100,
         see_through_walls=False,
+        extended_actions=False,
         seed=1337,
         agent_view_size=7
     ):
@@ -664,7 +685,9 @@ class MiniGridEnv(gym.Env):
             height = grid_size
 
         # Action enumeration for this environment
-        self.actions = MiniGridEnv.Actions
+        self.extended_actions = extended_actions
+        self.actions = MiniGridEnv.Actions if not extended_actions \
+                            else MiniGridEnv.ExtendedActions
 
         # Actions are discrete integer values
         self.action_space = spaces.Discrete(len(self.actions))
@@ -994,6 +1017,22 @@ class MiniGridEnv(gym.Env):
 
         return self.agent_pos + self.dir_vec
 
+    @property
+    def left_pos(self):
+        '''
+        Get left position
+        '''
+        dire = (self.agent_dir - 1)%4
+        return self.agent_pos + DIR_TO_VEC[dire]
+
+    @property
+    def right_pos(self):
+        '''
+        Get left position
+        '''
+        dire = (self.agent_dir + 1)%4
+        return self.agent_pos + DIR_TO_VEC[dire]
+
     def get_view_coords(self, i, j):
         """
         Translate and rotate absolute grid coordinates (i, j) into the
@@ -1095,9 +1134,15 @@ class MiniGridEnv(gym.Env):
 
         # Get the position in front of the agent
         fwd_pos = self.front_pos
+        left_pos = self.left_pos
+        right_pos = self.right_pos
 
         # Get the contents of the cell in front of the agent
         fwd_cell = self.grid.get(*fwd_pos)
+
+        # Also get contents of cells to left and right
+        left_cell = self.grid.get(*self.left_pos)
+        right_cell = self.grid.get(*self.right_pos)
 
         # Rotate left
         if action == self.actions.left:
@@ -1145,7 +1190,29 @@ class MiniGridEnv(gym.Env):
             done = True
 
         else:
-            assert False, "unknown action"
+            if self.extended_actions:
+                # strafe_left
+                if action == self.actions.strafe_left:
+                    if left_cell == None or left_cell.can_overlap():
+                        self.agent_pos = left_pos
+                    if left_cell != None and left_cell.type == 'goal':
+                        done = True
+                        reward = self._reward()
+                    if left_cell != None and left_cell.type == 'lava':
+                        done = True
+                # strafe right
+                elif action == self.actions.strafe_right:
+                    if right_cell == None or right_cell.can_overlap():
+                        self.agent_pos = right_pos
+                    if right_cell != None and right_cell.type == 'goal':
+                        done = True
+                        reward = self._reward()
+                    if right_cell != None and right_cell.type == 'lava':
+                        done = True
+                else:
+                    assert False, 'unknown action'
+            else:
+                assert False, "unknown action"
 
         if self.step_count >= self.max_steps:
             done = True
