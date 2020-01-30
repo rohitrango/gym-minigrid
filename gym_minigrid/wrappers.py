@@ -111,6 +111,21 @@ class ImgObsWrapper(gym.core.ObservationWrapper):
     def observation(self, obs):
         return obs['image']
 
+
+class FlatImgObsWrapper(gym.core.ObservationWrapper):
+    """
+    Use the image as the only observation output, flattened for MlpPolicy
+    """ 
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = env.observation_space.spaces['image']
+        import ipdb; ipdb.set_trace()
+
+    def observation(self, obs):
+        return obs['image'].reshape(-1)
+
+
 class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
     """
     Wrapper to get a one-hot encoding of a partially observable
@@ -275,7 +290,8 @@ class FullyObsOneHotWrapper(gym.core.ObservationWrapper):
         self.num_states = 4
 
         self.N = self.num_classes + self.num_colors + self.num_states
-
+        
+        # import ipdb; ipdb.set_trace()
         # Define shape of the new environment
         self.obsshape = list(self.env.observation_space.shape[:2])
         if flatten:
@@ -425,6 +441,7 @@ class GoalPolicyWrapper(gym.core.GoalEnv):
         }
         return obs_new, rew, done, info
 
+ 
 
 class FlatObsWrapper(gym.core.ObservationWrapper):
     """
