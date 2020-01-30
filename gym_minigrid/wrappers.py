@@ -277,12 +277,19 @@ class FullyObsOneHotWrapper(gym.core.ObservationWrapper):
         self.N = self.num_classes + self.num_colors + self.num_states
 
         # Define shape of the new environment
-        self.obsshape = list(self.env.observation_space.shape[:2])
+        selfenvobs = self.env.observation_space
+        try:
+            selfenvobs = selfenvobs['image'].shape
+        except:
+            selfenvobs = selfenvobs.shape
+        self.obsshape = list(selfenvobs[:2])
+        self.flatten = flatten
         if flatten:
             self.obsshape = np.prod(self.obsshape)
             shape = (self.obsshape * self.N, )
         else:
-            raise NotImplementedError
+            shape = tuple(self.obsshape + [self.N])
+            self.obsshape = np.prod(self.obsshape)
 
         self.observation_space = spaces.Box(
                 low=0,
@@ -313,7 +320,10 @@ class FullyObsOneHotWrapper(gym.core.ObservationWrapper):
 
         # Concat along the number of states dimension
         onehotobs = np.concatenate([onehotclass, onehotcolor, onehotstate], 1)
-        return onehotobs.reshape(-1)
+        if self.flatten:
+            return onehotobs.reshape(-1)
+        else:
+            return onehotobs.reshape(self.observation_space.shape)
 
 
 class AppendActionWrapper(gym.core.Wrapper):

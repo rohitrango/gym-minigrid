@@ -8,7 +8,7 @@ class SARPlaygroundV0(MiniGridEnv):
     """
 
     def __init__(self):
-        super().__init__(grid_size=19, max_steps=100)
+        super().__init__(grid_size=19, max_steps=200)
 
     def _gen_grid(self, width, height):
         # Create the grid
