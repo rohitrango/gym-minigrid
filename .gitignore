@@ -8,3 +8,5 @@ build/*
 dist/*
 tags
 vid/*
+.vscode/*
+sftp.json

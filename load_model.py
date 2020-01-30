@@ -9,24 +9,19 @@ from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
 
 env = gym.make('MiniGrid-Hall19x15seerescue2-v0')
-env = ViewSizeWrapper(env, agent_view_size=12)
+env = ViewSizeWrapper(env, agent_view_size=7)
 env = ImgObsWrapper(env)
 env = FullyObsOneHotWrapper(env)
 env = DummyVecEnv([lambda: env])
 obs = env.reset()
 print(obs)
+save_dir = '../'
+model = PPO2.load(save_dir + "PPO2_tutorial")
 
-# import ipdb;ipdb.set_trace()
-model = PPO2(MlpPolicy, env, verbose=1)
-
-model.learn(total_timesteps=10000)
-
-save_dir = './'
-model.save(save_dir + "PPO2_tutorial")
 
 obs = env.reset()
 for i in range(1000):
     action, _states = model.predict(obs)
     obs, rewards, dones, info = env.step(action)
     env.render()
-# 
+

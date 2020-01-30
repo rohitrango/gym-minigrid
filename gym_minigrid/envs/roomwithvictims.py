@@ -34,7 +34,7 @@ class Room:
         return goalsPos
 
 
-class HallwayWithVictims(MiniGridEnv):
+class RoomWithVictims(MiniGridEnv):
     """
     Environment in which the agent is instructed to go to a given object
     named using an English text string
@@ -44,12 +44,11 @@ class HallwayWithVictims(MiniGridEnv):
         self,
         width=31,
         height=25, 
-        see_through_walls=False, 
         max_victims=10,
         sideway_length=4
     ):
         super().__init__(width=width, height=height, 
-        max_steps=50*width*height, see_through_walls=see_through_walls)
+        max_steps=50*width*height)
         self.total_reward = 0 
         self.count = 0
         self.max_victims = max_victims
@@ -59,51 +58,51 @@ class HallwayWithVictims(MiniGridEnv):
 
         # Create the grid
         self.grid = Grid(width, height)
-        
-        # Hallway walls
-        lWallIdx = width // 2 - 2
-        rWallIdx = width // 2 + 2
-        for j in range(0+sideway_length, height-sideway_length):
-            self.grid.set(lWallIdx, j, Wall())
-            self.grid.set(rWallIdx, j, Wall())
+        self.room = Room((0, 0), (width, height), )
+        # # Hallway walls
+        # lWallIdx = width // 2 - 2
+        # rWallIdx = width // 2 + 2
+        # for j in range(0+sideway_length, height-sideway_length):
+        #     self.grid.set(lWallIdx, j, Wall())
+        #     self.grid.set(rWallIdx, j, Wall())
 
         # Generate the surrounding walls and hall sideways
-        for i in range(0, width):
-            self.grid.set(i, 0, Wall())
-            self.grid.set(i, height-1, Wall())
-            if i >= sideway_length and i <= width-1-sideway_length:
-                if i >= lWallIdx and i <= rWallIdx:
-                    # self.grid.set(i, sideway_length, Lava())
-                    # self.grid.set(i, height-1-sideway_length, Floor())
-                    continue
-                else:
-                    self.grid.set(i, sideway_length, Wall())
-                    self.grid.set(i, height-1-sideway_length, Wall())
+        # for i in range(0, width):
+        #     self.grid.set(i, 0, Wall())
+        #     self.grid.set(i, height-1, Wall())
+        #     if i >= sideway_length and i <= width-1-sideway_length:
+        #         if i >= lWallIdx and i <= rWallIdx:
+        #             # self.grid.set(i, sideway_length, Lava())
+        #             # self.grid.set(i, height-1-sideway_length, Floor())
+        #             continue
+        #         else:
+        #             self.grid.set(i, sideway_length, Wall())
+        #             self.grid.set(i, height-1-sideway_length, Wall())
 
-        for j in range(0, height):
-            self.grid.set(0, j, Wall())
-            self.grid.set(width-1, j, Wall())
-            if j >= sideway_length and j <= height-1-sideway_length:
-                self.grid.set(sideway_length, j, Wall())
-                self.grid.set(width-1-sideway_length, j, Wall())
+        # for j in range(0, height):
+        #     self.grid.set(0, j, Wall())
+        #     self.grid.set(width-1, j, Wall())
+        #     if j >= sideway_length and j <= height-1-sideway_length:
+        #         self.grid.set(sideway_length, j, Wall())
+        #         self.grid.set(width-1-sideway_length, j, Wall())
 
-        # Hallway walls
-        lWallIdx = width // 2 - 2
-        rWallIdx = width // 2 + 2
-        for j in range(0+sideway_length, height-sideway_length):
-            self.grid.set(lWallIdx, j, Wall())
-            self.grid.set(rWallIdx, j, Wall())
+        # # Hallway walls
+        # lWallIdx = width // 2 - 2
+        # rWallIdx = width // 2 + 2
+        # for j in range(0+sideway_length, height-sideway_length):
+        #     self.grid.set(lWallIdx, j, Wall())
+        #     self.grid.set(rWallIdx, j, Wall())
        
-        self.rooms = []
+        # self.rooms = []
 
-        # Room splitting walls
-        num_rooms = 3
-        for n in range(0, num_rooms):
-            j = n * (height - 2*sideway_length) // 3 
-            for i in range(0+sideway_length, lWallIdx):
-                self.grid.set(i, j+ sideway_length, Wall())
-            for i in range(rWallIdx, width-sideway_length):
-                self.grid.set(i, j+ sideway_length, Wall())
+        # # Room splitting walls
+        # num_rooms = 3
+        # for n in range(0, num_rooms):
+        #     j = n * (height - 2*sideway_length) // 3 
+        #     for i in range(0+sideway_length, lWallIdx):
+        #         self.grid.set(i, j+ sideway_length, Wall())
+        #     for i in range(rWallIdx, width-sideway_length):
+        #         self.grid.set(i, j+ sideway_length, Wall())
         
         # Left corridor roooms
         # leftroomWallIndex = (sideway_length + lWallIdx - 2) // 2
