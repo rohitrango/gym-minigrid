@@ -139,7 +139,7 @@ class HallwayWithVictims(MiniGridEnv):
             goalsPosList = room.set_goals_pos(self, num_goals)
             self.num_goals += 2
 
-        print('goals', self.num_goals)
+        #print('goals', self.num_goals)
 
         # # Choose one random room to be locked
         # lockedRoom = self._rand_elem(self.rooms)
@@ -184,7 +184,7 @@ class HallwayWithVictims(MiniGridEnv):
         obs, reward, done, info = MiniGridEnv.step(self, action)
         # import ipdb; ipdb.set_trace()
 
-        if action == self.actions.toggle and fwd_cell.type == 'box':
+        if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
             reward = 1
             self.total_reward += reward
             if self.total_reward >= self.num_goals:
