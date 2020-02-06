@@ -23,7 +23,7 @@ def main():
     parser.add_option(
             '--size',
             type=int,
-            default=20,
+            default=7,
             )
     parser.add_option(
             '--goal_num',
@@ -34,7 +34,10 @@ def main():
     (options, args) = parser.parse_args()
 
     # Load the gym environment
-    env = gym.make(options.env_name, size=options.size,  goal_num=options.goal_num, )
+    try:
+        env = gym.make(options.env_name, size=options.size,  goal_num=options.goal_num, )
+    except:
+        env = gym.make(options.env_name)
     env.agent_view_size = options.size
     env.see_through_walls = True
 
@@ -83,7 +86,7 @@ def main():
         image, dir_ = obs['image'], obs['direction']
         image = image[:, :, 0]
         image = np.rot90(image, -1)[:, ::-1]
-        print(image, dir_)
+        print(image)
         #plt.imshow(image)
         #plt.show()
         obs, reward, done, info = env.step(action)
