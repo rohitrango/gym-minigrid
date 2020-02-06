@@ -834,7 +834,6 @@ class MiniGridEnv(gym.Env):
         """
         Compute the reward to be given upon success
         """
-
         return 1 - 0.9 * (self.step_count / self.max_steps)
 
     def _rand_int(self, low, high):
@@ -1186,7 +1185,7 @@ class MiniGridEnv(gym.Env):
 
         # Done action (not used by default)
         elif action == self.actions.done:
-            # pass 
+            # pass
             done = True
 
         else:
@@ -1250,7 +1249,6 @@ class MiniGridEnv(gym.Env):
             grid.set(*agent_pos, self.carrying)
         else:
             grid.set(*agent_pos, None)
-
         return grid, vis_mask
 
     def gen_obs(self):
@@ -1272,7 +1270,7 @@ class MiniGridEnv(gym.Env):
         obs = {
             'image': image,
             'direction': self.agent_dir,
-            'mission': self.mission
+            'mission': self.mission,
         }
 
         return obs

@@ -51,7 +51,7 @@ class SARPlaygroundV0(MiniGridEnv):
         self.place_agent()
 
         # Place random objects in the world
-        types = ['ball', 'box', 'lava']
+        types = ['ball', 'lava']
         for i in range(0, 12):
             objType = self._rand_elem(types)
             objColor = self._rand_elem(COLOR_NAMES)
@@ -72,5 +72,10 @@ class SARPlaygroundV0(MiniGridEnv):
 
 register(
     id='MiniGrid-SAR-Playground-v0',
+    entry_point='gym_minigrid.envs:SARPlaygroundV0'
+)
+
+register(
+    id='MiniGrid-SAR-v0',
     entry_point='gym_minigrid.envs:SARPlaygroundV0'
 )
