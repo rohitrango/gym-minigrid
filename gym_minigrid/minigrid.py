@@ -834,7 +834,6 @@ class MiniGridEnv(gym.Env):
         """
         Compute the reward to be given upon success
         """
-
         return 1 - 0.9 * (self.step_count / self.max_steps)
 
     def _rand_int(self, low, high):
@@ -1186,7 +1185,7 @@ class MiniGridEnv(gym.Env):
 
         # Done action (not used by default)
         elif action == self.actions.done:
-            # pass 
+            # pass
             done = True
 
         else:

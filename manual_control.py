@@ -1,111 +1,116 @@
 #!/usr/bin/env python3
 
-from __future__ import division, print_function
-
-import sys
-import numpy
+import time
+import argparse
 import numpy as np
 import gym
-import time
-from optparse import OptionParser
-from matplotlib import pyplot as plt
 import gym_minigrid
+from gym_minigrid.wrappers import *
+from gym_minigrid.window import Window
 
-def main():
-    parser = OptionParser()
-    parser.add_option(
-        "-e",
-        "--env-name",
-        dest="env_name",
-        help="gym environment to load",
-        default='MiniGrid-MultiRoom-N6-v0'
-    )
-    parser.add_option(
-            '--size',
-            type=int,
-            default=7,
-            )
-    parser.add_option(
-            '--goal_num',
-            help='set goal number',
-            type=int,
-            default=0
-            )
-    (options, args) = parser.parse_args()
+def redraw(img):
+    if not args.agent_view:
+        img = env.render('rgb_array', tile_size=args.tile_size)
 
-    # Load the gym environment
-    try:
-        env = gym.make(options.env_name, size=options.size,  goal_num=options.goal_num, )
-    except:
-        env = gym.make(options.env_name)
-    env.agent_view_size = options.size
-    env.see_through_walls = True
+    window.show_img(img)
 
-    def resetEnv():
-        env.reset()
-        if hasattr(env, 'mission'):
-            print('Mission: %s' % env.mission)
+def reset():
+    if args.seed != -1:
+        env.seed(args.seed)
 
-    resetEnv()
+    obs = env.reset()
+    print(obs['image'].shape)
 
-    # Create a window to render into
-    renderer = env.render('human')
+    if hasattr(env, 'mission'):
+        print('Mission: %s' % env.mission)
+        window.set_caption(env.mission)
 
-    def keyDownCb(keyName):
-        if keyName == 'BACKSPACE':
-            resetEnv()
-            return
+    redraw(obs)
 
-        if keyName == 'ESCAPE':
-            sys.exit(0)
+def step(action):
+    obs, reward, done, info = env.step(action)
+    print('step=%s, reward=%.2f' % (env.step_count, reward))
 
-        action = 0
+    if done:
+        print('done!')
+        reset()
+    else:
+        redraw(obs)
 
-        if keyName == 'LEFT':
-            action = env.actions.left
-        elif keyName == 'RIGHT':
-            action = env.actions.right
-        elif keyName == 'UP':
-            action = env.actions.forward
+def key_handler(event):
+    print('pressed', event.key)
 
-        elif keyName == 'SPACE':
-            action = env.actions.toggle
-        elif keyName == 'PAGE_UP':
-            action = env.actions.pickup
-        elif keyName == 'PAGE_DOWN':
-            action = env.actions.drop
+    if event.key == 'escape':
+        window.close()
+        return
 
-        elif keyName == 'RETURN':
-            action = env.actions.done
+    if event.key == 'backspace':
+        reset()
+        return
 
-        else:
-            print("unknown key %s" % keyName)
-            return
+    if event.key == 'left':
+        step(env.actions.left)
+        return
+    if event.key == 'right':
+        step(env.actions.right)
+        return
+    if event.key == 'up':
+        step(env.actions.forward)
+        return
 
-        obs = env.gen_obs()
-        image, dir_ = obs['image'], obs['direction']
-        image = image[:, :, 0]
-        image = np.rot90(image, -1)[:, ::-1]
-        print(image)
-        #plt.imshow(image)
-        #plt.show()
-        obs, reward, done, info = env.step(action)
-        print(obs['direction'])
-        print('step=%s, reward=%.2f' % (env.step_count, reward))
+    # Spacebar
+    if event.key == ' ':
+        step(env.actions.toggle)
+        return
+    if event.key == 'pageup':
+        step(env.actions.pickup)
+        return
+    if event.key == 'pagedown':
+        step(env.actions.drop)
+        return
 
-        if done:
-            print('done!')
-            resetEnv()
+    if event.key == 'enter':
+        step(env.actions.done)
+        return
 
-    renderer.window.setKeyDownCb(keyDownCb)
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--env",
+    help="gym environment to load",
+    default='MiniGrid-MultiRoom-N6-v0'
+)
+parser.add_argument(
+    "--seed",
+    type=int,
+    help="random seed to generate the environment with",
+    default=-1
+)
+parser.add_argument(
+    "--tile_size",
+    type=int,
+    help="size at which to render tiles",
+    default=32
+)
+parser.add_argument(
+    '--agent_view',
+    default=False,
+    help="draw the agent sees (partially observable view)",
+    action='store_true'
+)
 
-    while True:
-        env.render('human')
-        time.sleep(0.01)
+args = parser.parse_args()
 
-        # If the window was closed
-        if renderer.window == None:
-            break
+env = gym.make(args.env)
+# env = gym.wrappers.Monitor(env, "recording")
+#env = gym.wrappers.Monitor(env, "./vid", video_callable=lambda episode_id: True,force=True)
+if args.agent_view:
+    #env = RGBImgPartialObsWrapper(env)
+    env = ImgObsWrapper(env)
 
-if __name__ == "__main__":
-    main()
+window = Window('gym_minigrid - ' + args.env)
+window.reg_key_handler(key_handler)
+
+reset()
+
+# Blocking event loop
+window.show(block=True)
