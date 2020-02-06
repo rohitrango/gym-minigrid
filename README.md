@@ -13,7 +13,7 @@ Requirements:
 - Python 3.5+
 - OpenAI Gym
 - NumPy
-- PyQT 5 for graphics
+- Matplotlib (optional, only needed for display)
 
 Please use this bibtex if you want to cite this repository in your publications:
 
@@ -28,21 +28,35 @@ Please use this bibtex if you want to cite this repository in your publications:
 }
 ```
 
-List of publications & submissions using MiniGrid (please open a pull request to add missing entries):
+List of publications & submissions using MiniGrid or BabyAI (please open a pull request to add missing entries):
+- [Learning to Request Guidance in Emergent Communication](https://arxiv.org/pdf/1912.05525.pdf) (University of Amsterdam, Dec 2019)
+- [Working Memory Graphs](https://arxiv.org/abs/1911.07141) (MSR, Nov 2019)
+- [Fast Task-Adaptation for Tasks Labeled Using
+Natural Language in Reinforcement Learning](https://arxiv.org/pdf/1910.04040.pdf) (Oct 2019, University of Antwerp)
+- [Generalization in Reinforcement Learning with Selective Noise Injection and Information Bottleneck
+](https://arxiv.org/abs/1910.12911) (MSR, NeurIPS, Oct 2019)
+- [Recurrent Independent Mechanisms](https://arxiv.org/pdf/1909.10893.pdf) (Mila, Sept 2019) 
+- [Learning Effective Subgoals with Multi-Task Hierarchical Reinforcement Learning](http://surl.tirl.info/proceedings/SURL-2019_paper_10.pdf) (Tsinghua University, August 2019)
+- [Mastering emergent language: learning to guide in simulated navigation](https://arxiv.org/abs/1908.05135) (University of Amsterdam, Aug 2019)
+- [Transfer Learning by Modeling a Distribution over Policies](https://arxiv.org/abs/1906.03574) (Mila, June 2019)
+- [Reinforcement Learning with Competitive Ensembles
+of Information-Constrained Primitives](https://arxiv.org/abs/1906.10667) (Mila, June 2019)
 - [Learning distant cause and effect using only local and immediate credit assignment](https://arxiv.org/abs/1905.11589) (Incubator 491, May 2019)
+- [Practical Open-Loop Optimistic Planning](https://arxiv.org/abs/1904.04700) (INRIA, April 2019)
 - [Learning World Graphs to Accelerate Hierarchical Reinforcement Learning](https://arxiv.org/abs/1907.00664) (Salesforce Research, 2019)
+- [Variational State Encoding as Intrinsic Motivation in Reinforcement Learning](https://mila.quebec/wp-content/uploads/2019/05/WebPage.pdf) (Mila, TARL 2019)
+- [Unsupervised Discovery of Decision States Through Intrinsic Control](https://tarl2019.github.io/assets/papers/modhe2019unsupervised.pdf) (Georgia Tech, TARL 2019)
 - [Modeling the Long Term Future in Model-Based Reinforcement Learning](https://openreview.net/forum?id=SkgQBn0cF7) (Mila, ICLR 2019)
 - [Practical Open-Loop Optimistic Planning](https://arxiv.org/pdf/1904.04700.pdf) (INRIA, Apr 2019)
 - [Unifying Ensemble Methods for Q-learning via Social Choice Theory](https://arxiv.org/pdf/1902.10646.pdf) (Max Planck Institute, Feb 2019)
 - [Planning Beyond The Sensing Horizon Using a Learned Context](https://personalrobotics.cs.washington.edu/workshops/mlmp2018/assets/docs/18_CameraReadySubmission.pdf) (MLMP@IROS, 2018)
 - [Guiding Policies with Language via Meta-Learning](https://arxiv.org/abs/1811.07882) (UC Berkeley, Nov 2018)
-- [On the Complexity of Exploration in Goal-Driven Navigation](https://arxiv.org/abs/1811.06889) (CMU, NIPS, Nov 2018)
+- [On the Complexity of Exploration in Goal-Driven Navigation](https://arxiv.org/abs/1811.06889) (CMU, NeurIPS, Nov 2018)
 - [Transfer and Exploration via the Information Bottleneck](https://openreview.net/forum?id=rJg8yhAqKm) (Mila, Nov 2018)
-- [Modeling the Long Term Future in Model-Based Reinforcement Learning](https://openreview.net/forum?id=SkgQBn0cF7) (Nov 2018)
-- [Learning of Sophisticated Curriculums by viewing them as Graphs over Tasks](https://openreview.net/forum?id=rJlGdsC9Ym) (ICLR, Nov 2018, withdrawn)
-- [BabyAI: First Steps Towards Grounded Language Learning With a Human In the Loop](https://arxiv.org/abs/1810.08272) (Mila, Oct 2018)
+- [Creating safer reward functions for reinforcement learning agents in the gridworld](https://gupea.ub.gu.se/bitstream/2077/62445/1/gupea_2077_62445_1.pdf) (University of Gothenburg, 2018)
+- [BabyAI: First Steps Towards Grounded Language Learning With a Human In the Loop](https://arxiv.org/abs/1810.08272) (Mila, ICLR, Oct 2018)
 
-This environment has been built as part of work done at the [MILA](https://mila.quebec/en/). The Dynamic obstacles environment has been added as part of work done at [IAS in TU Darmstadt](https://www.ias.informatik.tu-darmstadt.de/) and the University of Genoa for mobile robot navigation with dynamic obstacles.
+This environment has been built as part of work done at [Mila](https://mila.quebec). The Dynamic obstacles environment has been added as part of work done at [IAS in TU Darmstadt](https://www.ias.informatik.tu-darmstadt.de/) and the University of Genoa for mobile robot navigation with dynamic obstacles.
 
 ## Installation
 
@@ -68,10 +82,10 @@ There is a UI application which allows you to manually control the agent with th
 ./manual_control.py
 ```
 
-The environment being run can be selected with the `--env-name` option, eg:
+The environment being run can be selected with the `--env_name` option, eg:
 
 ```
-./manual_control.py --env-name MiniGrid-Empty-8x8-v0
+./manual_control.py --env_name MiniGrid-Empty-8x8-v0
 ```
 
 ## Reinforcement Learning
@@ -85,7 +99,7 @@ cd torch-rl
 python3 -m scripts.train --env MiniGrid-Empty-8x8-v0 --algo ppo
 ```
 
-## Design
+## Wrappers
 
 MiniGrid is built to support tasks involving natural language and sparse rewards.
 The observations are dictionaries, with an 'image' field, partially observable
@@ -93,15 +107,26 @@ view of the environment, a 'mission' field which is a textual string
 describing the objective the agent should reach to get a reward, and a 'direction'
 field which can be used as an optional compass. Using dictionaries makes it
 easy for you to add additional information to observations
-if you need to, without having to force everything into a single tensor.
-If your RL code expects one single tensor for observations, please take a look at
-`FlatObsWrapper` in
-[gym_minigrid/wrappers.py](/gym_minigrid/wrappers.py).
+if you need to, without having to encode everything into a single tensor.
 
-The partially observable view of the environment uses a compact and efficient
-encoding, with just 3 input values per visible grid cell, 7x7x3 values total.
-If you want to obtain an array of RGB pixels instead, see the `get_obs_render` method in
-[gym_minigrid/minigrid.py](gym_minigrid/minigrid.py).
+There are a variery of wrappers to change the observation format available in [gym_minigrid/wrappers.py](/gym_minigrid/wrappers.py). If your RL code expects one single tensor for observations, take a look at
+`FlatObsWrapper`. There is also an `ImgObsWrapper` that gets rid of the 'mission' field in observations,
+leaving only the image field tensor.
+
+Please note that the default observation format is a partially observable view of the environment using a
+compact and efficient encoding, with 3 input values per visible grid cell, 7x7x3 values total.
+These values are **not pixels**. If you want to obtain an array of RGB pixels as observations instead,
+use the `RGBImgPartialObsWrapper`. You can use it as follows:
+
+```
+from gym_minigrid.wrappers import *
+env = gym.make('MiniGrid-Empty-8x8-v0')
+env = RGBImgPartialObsWrapper(env) # Get pixel observations
+env = ImgObsWrapper(env) # Get rid of the 'mission' field
+obs = env.reset() # This now produces an RGB tensor only
+```
+
+## Design
 
 Structure of the world:
 - The world is an NxM grid of tiles
@@ -392,6 +417,38 @@ The agent has to pick up a box which is placed in a corner of a 3x3 maze.
 The doors are locked, the keys are hidden in boxes and doors are obstructed
 by balls. This environment can be solved without relying on language.
 
+## Distributional shift environment
+
+Registered configurations:
+- `MiniGrid-DistShift1-v0`
+- `MiniGrid-DistShift2-v0`
+
+This environment is based on one of the DeepMind [AI safety gridworlds](https://github.com/deepmind/ai-safety-gridworlds).
+The agent starts in the top-left corner and must reach the goal which is in the top-right corner, but has to avoid stepping
+into lava on its way. The aim of this environment is to test an agent's ability to generalize. There are two slightly
+different variants of the environment, so that the agent can be trained on one variant and tested on the other.
+
+<p align="center">
+  <img src="figures/DistShift1.png" width="200">
+  <img src="figures/DistShift2.png" width="200">
+</p>
+
+## Lava gap environment
+
+Registered configurations:
+- `MiniGrid-LavaGapS5-v0`
+- `MiniGrid-LavaGapS6-v0`
+- `MiniGrid-LavaGapS7-v0`
+
+<p align="center">
+  <img src="figures/LavaGapS6.png" width="200">
+</p>
+
+The agent has to reach the green goal square at the opposite corner of the room,
+and must pass through a narrow gap in a vertical strip of deadly lava. Touching
+the lava terminate the episode with a zero reward. This environment is useful
+for studying safety and safe exploration.
+
 ## Lava crossing environment
 
 Registered configurations:
@@ -413,22 +470,6 @@ Each lava stream runs across the room either horizontally or vertically, and
 has a single crossing point which can be safely used;  Luckily, a path to the
 goal is guaranteed to exist. This environment is useful for studying safety and
 safe exploration.
-
-## Distributional shift environment
-
-Registered configurations:
-- `MiniGrid-DistShift1-v0`
-- `MiniGrid-DistShift2-v0`
-
-This environment is based on one of the DeepMind [AI safety gridworlds](https://github.com/deepmind/ai-safety-gridworlds).
-The agent starts in the top-left corner and must reach the goal which is in the top-right corner, but has to avoid stepping
-into lava on its way. The aim of this environment is to test an agent's ability to generalize. There are two slightly
-different variants of the environment, so that the agent can be trained on one variant and tested on the other.
-
-<p align="center">
-  <img src="figures/DistShift1.png" width="200">
-  <img src="figures/DistShift2.png" width="200">
-</p>
 
 ## Simple crossing environment
 

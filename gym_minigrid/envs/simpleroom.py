@@ -65,5 +65,5 @@ class SimpleRoom(MiniGridEnv):
 
 register(
     id='MiniGrid-SimpleRoom-v0',
-    entry_point='gym_minigrid.envs:SimpleRoom'
+    entry_point='gym_minigrid.envs:SimpleRoom',
 )

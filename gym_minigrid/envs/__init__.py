@@ -16,6 +16,13 @@ from gym_minigrid.envs.obstructedmaze import *
 from gym_minigrid.envs.memory import *
 from gym_minigrid.envs.fourrooms import *
 from gym_minigrid.envs.crossing import *
+from gym_minigrid.envs.lavagap import *
 from gym_minigrid.envs.dynamicobstacles import *
 from gym_minigrid.envs.distshift import *
+
+from gym_minigrid.envs.hallwithvictims import *
+from gym_minigrid.envs.SARplayground import * 
+
 from gym_minigrid.envs.simpleroom import *
+from gym_minigrid.envs.multiobj import *
+

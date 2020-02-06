@@ -7,3 +7,6 @@ trained_models
 build/*
 dist/*
 tags
+
+#
+vid/*
