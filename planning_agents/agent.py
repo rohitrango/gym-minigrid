@@ -35,7 +35,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 1e-3
+        self.epsilon = 1e-4
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -83,6 +83,8 @@ class PlanAgent:
         belief = self.belief[A:-A, A:-A]
         ent = -belief * np.log(1e-10 + belief)
         ent = ent.sum(2)
+        from scipy.ndimage import zoom
+        ent = -zoom(ent, 4)
         return ent
 
     def rotate_right(self, grid):
@@ -393,7 +395,7 @@ class PlanAgent:
 ## Main code
 #########################
 env = gym.make('MiniGrid-FourRooms-v0')
-env = gym.make('MiniGrid-HallwayWithVictims-v0')
+#env = gym.make('MiniGrid-HallwayWithVictims-v0')
 #env = gym.make('MiniGrid-HallwayWithVictimsAndFire-v0')
 #env = gym.make('MiniGrid-Empty-Random-10x10-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
