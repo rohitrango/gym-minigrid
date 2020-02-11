@@ -30,6 +30,7 @@ class ReseedWrapper(gym.core.Wrapper):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
 
+
 class ActionBonus(gym.core.Wrapper):
     """
     Wrapper which adds an exploration bonus.
@@ -110,6 +111,26 @@ class ImgObsWrapper(gym.core.ObservationWrapper):
 
     def observation(self, obs):
         return obs['image']
+
+
+class AgentExtraInfoWrapper(gym.core.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Dict({
+                    'image': env.observation_space.spaces['image'],
+                    'pos': gym.spaces.Box(-1, 10000, shape=(2,)),
+                    'dir': gym.spaces.Box(0, 5, shape=()),
+                    })
+
+    def observation(self, obs):
+        obs = {
+                'image': obs['image'],
+                'pos': self.env.agent_pos,
+                'dir': self.env.agent_dir,
+                }
+        return obs
+
+
 
 class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
     """

@@ -1064,7 +1064,6 @@ class MiniGridEnv(gym.Env):
         Get the extents of the square set of tiles visible to the agent
         Note: the bottom extent indices are not included in the set
         """
-
         # Facing right
         if self.agent_dir == 0:
             topX = self.agent_pos[0]
