@@ -51,8 +51,8 @@ class HallwayWithVictims(MiniGridEnv):
 
 
     def _gen_grid(self, width, height, sideway_length=4):
-
         # Create the grid
+        self.total_reward = 0
         self.grid = Grid(width, height)
 
         # Hallway walls

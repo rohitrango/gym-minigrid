@@ -35,7 +35,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 0
+        self.epsilon = 1e-3
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -130,6 +130,8 @@ class PlanAgent:
         self.agent_dir = agdir
 
         topX, topY, botX, botY = self.get_bounds(pos, agdir)
+        h, w = img.shape[:2]
+        img[w//2, h-1, 0] = 0
         #print(topX, topY, botX, botY)
         #print(self.agent_view_size)
         for i in range(agdir + 1):
@@ -392,6 +394,7 @@ class PlanAgent:
 #########################
 env = gym.make('MiniGrid-FourRooms-v0')
 env = gym.make('MiniGrid-HallwayWithVictims-v0')
+#env = gym.make('MiniGrid-HallwayWithVictimsAndFire-v0')
 #env = gym.make('MiniGrid-Empty-Random-10x10-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
@@ -409,7 +412,7 @@ while True:
     obs, rew, done, info = env.step(act)
     if done:
         obs = env.reset()
-        agent.reset()
+        #agent.reset()
     act = agent.predict(obs)
     #print(obs['pos'], obs['dir'])
 
