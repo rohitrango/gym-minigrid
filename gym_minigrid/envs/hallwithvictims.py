@@ -22,14 +22,14 @@ class Room:
             topY + 1, topY + sizeY - 1
         )
 
-    def set_goals_pos(self, env, num_goals):
+    def set_goals_pos(self, env, num_goals, set_goals=True):
         goalsPos = set()
-        while True:
+        while set_goals:
             goalsPos.add(self.rand_pos(env))
             if len(goalsPos) == 2: #  int(num_goals):
                 break
         for goal in goalsPos:
-            env.grid.set(*goal, Box('red'))
+            env.grid.set(*goal, Box('red', toggletimes=3))
 
         return goalsPos
 
@@ -43,8 +43,10 @@ class HallwayWithVictims(MiniGridEnv):
     def __init__(
         self,
         width=25,
-        height=25
+        height=25,
+        random_door_pos=False,
     ):
+        self.random_door_pos = random_door_pos
         super().__init__(width=width, height=height, max_steps=10*width*height)
         self.total_reward = 0
         self.num_goals = 0
@@ -110,13 +112,27 @@ class HallwayWithVictims(MiniGridEnv):
             # Add Rooms to grid list
             roomW = 0 - sideway_length + lWallIdx + 1
             roomH = (height - 2*sideway_length) // 3 + 1
-            if n % 2 == 0 or True:
-                #leftroomdoorpos =  (sideway_length, j + sideway_length + self._rand_int(1, roomH-1))
-                leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
-                rightroomdoorpos = (rWallIdx, j + sideway_length + self._rand_int(1, roomH-1))
+
+            # Do not sample door locations
+            if not self.random_door_pos:
+                if True:
+                    #leftroomdoorpos =  (sideway_length, j + sideway_length + self._rand_int(1, roomH-1))
+                    leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
+                    rightroomdoorpos = (rWallIdx, j + sideway_length + self._rand_int(1, roomH-1))
+                else:
+                    leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
+                    rightroomdoorpos = (width-1-sideway_length, j + sideway_length + self._rand_int(1, roomH-1))
             else:
-                leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
-                rightroomdoorpos = (width-1-sideway_length, j + sideway_length + self._rand_int(1, roomH-1))
+                # Sample door locations from left or right
+                if np.random.randint(2):
+                    leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
+                else:
+                    leftroomdoorpos = (lWallIdx,  j + sideway_length  + self._rand_int(1, roomH-1))
+
+                if np.random.randint(2):
+                    rightroomdoorpos = (rWallIdx, j + sideway_length + self._rand_int(1, roomH-1))
+                else:
+                    rightroomdoorpos = (width-1-sideway_length, j + sideway_length + self._rand_int(1, roomH-1))
 
             self.rooms.append(Room(
                 (0+sideway_length, j+sideway_length),
@@ -136,8 +152,9 @@ class HallwayWithVictims(MiniGridEnv):
         for i, room in enumerate(self.rooms):
             num_goals = self._rand_int(0, max_goals_per_room)
             # num_goals = (i) % 3
-            goalsPosList = room.set_goals_pos(self, num_goals)
-            self.num_goals += 2
+            set_goals_RV = bool(np.random.randint(2))
+            goalsPosList = room.set_goals_pos(self, num_goals, set_goals=set_goals_RV)
+            self.num_goals += (2 * int(set_goals_RV))
 
         #print('goals', self.num_goals)
 
@@ -182,17 +199,33 @@ class HallwayWithVictims(MiniGridEnv):
     def step(self, action):
         fwd_cell = self.grid.get(*self.front_pos)
         obs, reward, done, info = MiniGridEnv.step(self, action)
+        fwd_cell_after = self.grid.get(*self.front_pos)
         # import ipdb; ipdb.set_trace()
 
         if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
-            reward = 1
+            # If toggled, then the box should be none or not a box
+            if fwd_cell_after is None:
+                reward = 1
+            elif fwd_cell_after.type != 'box':
+                reward = 1
+            # Add total reward
             self.total_reward += reward
             if self.total_reward >= self.num_goals:
                 done = True
 
         return obs, reward, done, info
 
+class HallwayWithVictimsRandom(HallwayWithVictims):
+    def __init__(self, width=25, height=25):
+        super().__init__(width=width, height=height, random_door_pos=True)
+
+
 register(
     id='MiniGrid-HallwayWithVictims-v0',
     entry_point='gym_minigrid.envs:HallwayWithVictims'
+)
+
+register(
+    id='MiniGrid-HallwayWithVictims-v1',
+    entry_point='gym_minigrid.envs:HallwayWithVictimsRandom'
 )

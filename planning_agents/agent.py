@@ -23,6 +23,7 @@ ACTION_TO_NUM_MAPPING = {
     'right': 1,
     'forward': 2,
     'toggle': 5,
+    'done': 6,
 }
 IDX_TO_OBJECT = dict([(v, k) for k, v in OBJECT_TO_IDX.items()])
 
@@ -36,7 +37,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 1e-10
+        self.epsilon = 1e-5
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -54,6 +55,7 @@ class PlanAgent:
         self.agent_pos = None
         self.agent_dir = None
         self._subgoal = None
+        self._current_plan = None
 
 
     def reset(self):
@@ -68,6 +70,7 @@ class PlanAgent:
         self.agent_pos = None
         self.agent_dir = None
         self._subgoal = None
+        self._current_plan = None
 
 
     def get_max_belief(self):
@@ -82,7 +85,7 @@ class PlanAgent:
         prob = belief[:, :, classidx].sum(2)
         if zoom_factor > 1:
             prob = zoom(prob, zoom_factor, order=1)
-        prob[0, 0] = 1
+            prob[0, 0] = 1
         return prob
 
     @property
@@ -92,7 +95,7 @@ class PlanAgent:
     def get_entropy(self):
         A = self.agent_view_size
         belief = self.belief[A:-A, A:-A]
-        ent = -belief * np.log(1e-10 + belief)
+        ent = -belief * np.log(1e-100 + belief)
         ent = ent.sum(2)
         ent = -zoom(ent, 4)
         return ent
@@ -194,6 +197,16 @@ class PlanAgent:
                     self.plan = []
                     self.plan.append('toggle')
 
+        elif len(self.plan) == 0:
+            # Toggle door as long as it takes
+            dirvec = NUM_TO_DIR[self.agent_dir]
+            fwd_cell = self.agent_pos + dirvec
+            # Get object, color, state
+            fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+            if fwd_obj == 'box':
+                self.plan = []
+                self.plan.append('toggle')
+
 
     def query_cell(self, pos):
         A = self.agent_view_size
@@ -213,7 +226,11 @@ class PlanAgent:
         self.check_safe_plan()
         if self.plan == []:
             self.update_plan()
-        return ACTION_TO_NUM_MAPPING[self.plan.pop()]
+        try:
+            return ACTION_TO_NUM_MAPPING[self.plan.pop()]
+        except:
+            print("Returning done")
+            return ACTION_TO_NUM_MAPPING['done']
 
 
     def get_location_from_preference(self, pref):
@@ -238,7 +255,7 @@ class PlanAgent:
             return [x[minidx], y[minidx]]
 
         elif pref == 'explore':
-            entropy = - self.belief * np.log(self.belief + 1e-16)
+            entropy = -self.belief * np.log(self.belief + 1e-100)
             entropy = entropy[A:-A, A:-A].mean(2)
             # Get shape
             H, W = entropy.shape
@@ -247,11 +264,11 @@ class PlanAgent:
             xx, yy = np.meshgrid(xx, yy)
             dist = np.sqrt((xx - self.agent_pos[0])**2 + (yy - self.agent_pos[1])**2)
             dist /= H
-            entropy = entropy / (1 + dist)
+            entropydist = entropy / (1 + dist)
             # Sample from it
             N = entropy.reshape(-1).shape[0]
-            p = entropy/entropy.sum()
             try:
+                p = entropydist/entropydist.sum()
                 goal = np.random.choice(np.arange(N), p=p.reshape(-1))
                 x, y = goal//H, goal%H
                 return [x, y]
@@ -267,6 +284,7 @@ class PlanAgent:
         for pref in self.preferences:
             loc = self.get_location_from_preference(pref)
             if loc is not None:
+                self._current_plan = pref
                 break
 
         # The location should not be empty
@@ -299,7 +317,7 @@ class PlanAgent:
         # Get source and dst
         src = list(self.agent_pos)
         agdir = self.agent_dir
-        print(src, dst)
+        #print(src, dst)
 
         locations = []
         # Get belief and visited matrix
@@ -401,6 +419,114 @@ class PlanAgent:
             nbrs.append([x, y+dy])
         return nbrs
 
+
+class PreEmptiveAgent(PlanAgent):
+    '''
+    This agent stops whereever its going to when it sees a door or goal
+    Two parts:
+        If going to a door or goal, keep going
+        If exploring and see a door/goal, then go to door/goal
+    '''
+    def check_safe_plan(self):
+        # TODO: Check if the next step is safe, if not then delete the existing plan
+        if len(self.plan) > 0:
+            if self.plan[-1] == 'forward':
+                dirvec = NUM_TO_DIR[self.agent_dir]
+                fwd_cell = self.agent_pos + dirvec
+                # Get object, color, state
+                fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+                if fwd_obj in ['wall', 'lava']:
+                    self.plan = []
+                elif fwd_obj == 'door':
+                    self.plan = []
+                    if fwd_state == STATE_TO_IDX['closed']:
+                        self.plan.append('toggle')
+                elif fwd_obj == 'box':
+                    self.plan = []
+                    self.plan.append('toggle')
+
+        elif len(self.plan) == 0:
+            # Toggle door as long as it takes
+            dirvec = NUM_TO_DIR[self.agent_dir]
+            fwd_cell = self.agent_pos + dirvec
+            # Get object, color, state
+            fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+            if fwd_obj == 'box':
+                self.plan = []
+                self.plan.append('toggle')
+
+        if self._current_plan == 'explore':
+            # If you're exploring and see something
+            A = self.agent_view_size
+            maxprob = self.get_prob_map(['box', 'goal'], zoom_factor=1)
+            maxprob = np.max(maxprob)
+            # Check for unopened doors
+            doorprob = self.get_prob_map(['door'], zoom_factor=1)
+            doorprob *= (self.objstates[A:-A, A:-A, STATE_TO_IDX['closed']])
+            if maxprob >= 0.7:
+                #print("Preemptively ditching plan for goal")
+                self.plan = []
+            elif np.max(doorprob) >= 0.7:
+                #print("Preemptively ditching plan for door")
+                self.plan = []
+
+
+class ScouringAgent(PlanAgent):
+    '''
+    This agent minimizes overall entropy first and then goes to plan
+    Two parts:
+        If going to a door or goal, keep going
+        If exploring and see a door/goal, then go to door/goal
+    '''
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.preferences = ['door', 'explore', 'goal', 'box']
+        self.opendoors = 0
+
+    def check_safe_plan(self):
+        if len(self.plan) > 0:
+            if self.plan[-1] == 'forward':
+                dirvec = NUM_TO_DIR[self.agent_dir]
+                fwd_cell = self.agent_pos + dirvec
+                # Get object, color, state
+                fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+                if fwd_obj in ['wall', 'lava']:
+                    self.plan = []
+                elif fwd_obj == 'door':
+                    self.plan = []
+                    if fwd_state == STATE_TO_IDX['closed']:
+                        self.plan.append('toggle')
+                        self.opendoors += 1
+                        # Check if all doors are open, no need to explore anymore now
+                        if self.opendoors >= 6:
+                            self.preferences.remove('explore')
+                            self.preferences.append('explore')
+
+                elif fwd_obj == 'box':
+                    self.plan = []
+                    self.plan.append('toggle')
+
+        elif len(self.plan) == 0:
+            # Toggle door as long as it takes
+            dirvec = NUM_TO_DIR[self.agent_dir]
+            fwd_cell = self.agent_pos + dirvec
+            # Get object, color, state
+            fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+            if fwd_obj == 'box':
+                self.plan = []
+                self.plan.append('toggle')
+
+        if self._current_plan == 'explore':
+            # If you're exploring and see a door
+            A = self.agent_view_size
+            # Check for unopened doors
+            doorprob = self.get_prob_map(['door'], zoom_factor=1)
+            doorprob *= (self.objstates[A:-A, A:-A, STATE_TO_IDX['closed']])
+            if np.max(doorprob) >= 0.7:
+                #print("Preemptively ditching plan for door")
+                self.plan = []
+
+
 #########################
 ## Main code
 #########################
@@ -410,25 +536,42 @@ env = gym.make('MiniGrid-HallwayWithVictims-v0')
 #env = gym.make('MiniGrid-Empty-Random-10x10-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
-agent = PlanAgent(env)
+#agent = PlanAgent(env)
+#agent = PreEmptiveAgent(env)
+agent = ScouringAgent(env)
 obs = env.reset()
 act = agent.predict(obs)
 #agent.update(obs)
 #print(obs['pos'], obs['dir'])
 print(OBJECT_TO_IDX)
 
-while True:
+## Save trajectories here
+all_episode_actions = []
+current_episode_actions = []
+episodes = 0
+num_steps = 0
+
+while episodes < 1000:
     #act = int(input("Enter action "))
     #agent.update(obs)
     #act = agent.predict(obs)
     obs, rew, done, info = env.step(act)
+    num_steps += 1
+    current_episode_actions.append(act)
     if done:
+        print("Episode {} done in {} steps".format(episodes + 1, num_steps))
+        episodes += 1
+        num_steps = 0
         obs = env.reset()
-        #agent.reset()
+        agent.reset()
+        # Add this episode data to all episodes
+        all_episode_actions.append(current_episode_actions)
+        current_episode_actions = []
+
     act = agent.predict(obs)
     #print(obs['pos'], obs['dir'])
 
-    if True:
+    if 0:
         plt.clf()
         plt.subplot(221)
         img = env.render('rgb_array')
@@ -448,3 +591,15 @@ while True:
         plt.draw()
         plt.pause(0.001)
 
+
+# Get filename
+print(agent)
+filename = input('Enter filename: ')
+filename += '.csv'
+
+with open(filename, 'wt') as fi:
+    lines = []
+    for act in all_episode_actions:
+        stract = ','.join(list(map(lambda x: str(x), act))) + "\n"
+        lines.append(stract)
+    fi.writelines(lines)

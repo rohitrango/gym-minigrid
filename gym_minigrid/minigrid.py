@@ -309,9 +309,10 @@ class Ball(WorldObj):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
 
 class Box(WorldObj):
-    def __init__(self, color, contains=None):
+    def __init__(self, color, contains=None, toggletimes=1):
         super(Box, self).__init__('box', color)
         self.contains = contains
+        self.toggletimes = toggletimes
 
     def can_pickup(self):
         return True
@@ -328,8 +329,11 @@ class Box(WorldObj):
 
     def toggle(self, env, pos):
         # Replace the box by its contents
-        env.grid.set(*pos, self.contains)
-        return True
+        self.toggletimes -= 1
+        if self.toggletimes <= 0:
+            env.grid.set(*pos, self.contains)
+            return True
+        return False
 
 class Grid:
     """
