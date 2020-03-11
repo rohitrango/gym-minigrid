@@ -39,12 +39,18 @@ class GoToDoorEnv(MiniGridEnv):
         doorPos.append((width-1, self._rand_int(2, height-2)))
 
         # Generate the door colors
-        doorColors = []
-        while len(doorColors) < len(doorPos):
-            color = self._rand_elem(COLOR_NAMES)
-            if color in doorColors:
-                continue
-            doorColors.append(color)
+        doorIdx = None
+        while doorIdx is None:
+            doorColors = []
+            i = 0
+            while len(doorColors) < len(doorPos):
+                color = self._rand_elem(COLOR_NAMES)
+                if color in doorColors:
+                    continue
+                if color == 'red':
+                    doorIdx = i
+                doorColors.append(color)
+                i+=1
 
         # Place the doors in the grid
         for idx, pos in enumerate(doorPos):
@@ -55,7 +61,7 @@ class GoToDoorEnv(MiniGridEnv):
         self.place_agent(size=(width, height))
 
         # Select a random target door
-        doorIdx = self._rand_int(0, len(doorPos))
+        #doorIdx = self._rand_int(0, len(doorPos))
         self.target_pos = doorPos[doorIdx]
         self.target_color = doorColors[doorIdx]
 

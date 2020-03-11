@@ -9,9 +9,10 @@ class CrossingEnv(MiniGridEnv):
     Environment with wall or lava obstacles, sparse reward.
     """
 
-    def __init__(self, size=9, num_crossings=1, obstacle_type=Lava, seed=None):
+    def __init__(self, size=9, num_crossings=1, obstacle_type=Lava, ori=2, seed=None):
         self.num_crossings = num_crossings
         self.obstacle_type = obstacle_type
+        self.ori = ori   # 0 for horizontal, 1 for vertical, 2 for both
         super().__init__(
             grid_size=size,
             max_steps=4*size*size,
@@ -40,8 +41,16 @@ class CrossingEnv(MiniGridEnv):
         v, h = object(), object()  # singleton `vertical` and `horizontal` objects
 
         # Lava rivers or walls specified by direction and position in grid
-        rivers = [(v, i) for i in range(2, height - 2, 2)]
-        rivers += [(h, j) for j in range(2, width - 2, 2)]
+        if self.ori == 0:
+            rivers = [(h, j) for j in range(2, width - 2, 2)]
+        elif self.ori == 1:
+            rivers = [(v, i) for i in range(2, height - 2, 2)]
+        elif self.ori == 2:
+            rivers = [(v, i) for i in range(2, height - 2, 2)]
+            rivers += [(h, j) for j in range(2, width - 2, 2)]
+        else:
+            raise NotImplementedError
+
         self.np_random.shuffle(rivers)
         rivers = rivers[:self.num_crossings]  # sample random rivers
         rivers_v = sorted([pos for direction, pos in rivers if direction is v])
@@ -86,6 +95,10 @@ class LavaCrossingEnv(CrossingEnv):
     def __init__(self):
         super().__init__(size=9, num_crossings=1)
 
+class LavaCrossingEnvVert(CrossingEnv):
+    def __init__(self):
+        super().__init__(size=9, num_crossings=1, ori=1)
+
 class LavaCrossingS9N2Env(CrossingEnv):
     def __init__(self):
         super().__init__(size=9, num_crossings=2)
@@ -101,6 +114,11 @@ class LavaCrossingS11N5Env(CrossingEnv):
 register(
     id='MiniGrid-LavaCrossingS9N1-v0',
     entry_point='gym_minigrid.envs:LavaCrossingEnv'
+)
+
+register(
+    id='MiniGrid-LavaCrossingS9N0-v0',
+    entry_point='gym_minigrid.envs:LavaCrossingEnvVert'
 )
 
 register(

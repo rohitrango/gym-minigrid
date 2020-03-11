@@ -45,7 +45,7 @@ class HallwayWithVictims(MiniGridEnv):
         width=25,
         height=25
     ):
-        super().__init__(width=width, height=height, max_steps=10*width*height)
+        super().__init__(width=width, height=height, max_steps=width*height)
         self.total_reward = 0
         self.num_goals = 0
 
