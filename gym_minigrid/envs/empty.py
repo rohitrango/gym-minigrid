@@ -60,6 +60,10 @@ class EmptyRandomEnv6x6(EmptyEnv):
     def __init__(self):
         super().__init__(size=6, agent_start_pos=None)
 
+class EmptyRandomEnv8x8(EmptyEnv):
+    def __init__(self):
+        super().__init__(size=8, agent_start_pos=None)
+
 class EmptyRandomEnv10x10(EmptyEnv):
     def __init__(self):
         super().__init__(size=10, agent_start_pos=None, sizetop=(4, 4))
@@ -86,6 +90,11 @@ register(
 register(
     id='MiniGrid-Empty-Random-6x6-v0',
     entry_point='gym_minigrid.envs:EmptyRandomEnv6x6'
+)
+
+register(
+    id='MiniGrid-Empty-Random-8x8-v0',
+    entry_point='gym_minigrid.envs:EmptyRandomEnv8x8'
 )
 
 register(

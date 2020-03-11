@@ -46,8 +46,12 @@ class HallwayWithVictims(MiniGridEnv):
         height=25,
         random_door_pos=False,
     ):
+<<<<<<< HEAD
         self.random_door_pos = random_door_pos
         super().__init__(width=width, height=height, max_steps=10*width*height)
+=======
+        super().__init__(width=width, height=height, max_steps=width*height)
+>>>>>>> 8cb590b2a73cb91635b24429d122e198aa7b3c1e
         self.total_reward = 0
         self.num_goals = 0
 

@@ -37,7 +37,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 1e-5
+        self.epsilon = 1e-2
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -571,7 +571,7 @@ while episodes < 1000:
     act = agent.predict(obs)
     #print(obs['pos'], obs['dir'])
 
-    if 0:
+    if 1:
         plt.clf()
         plt.subplot(221)
         img = env.render('rgb_array')
@@ -579,11 +579,11 @@ while episodes < 1000:
 
         plt.subplot(222)
         plt.imshow(agent.get_prob_map(['box', 'goal']).T, 'jet')
-        plt.title('Probability of goal')
+        plt.title('Victim')
 
         plt.subplot(223)
         plt.imshow(agent.get_prob_map(['wall']).T, 'jet')
-        plt.title('Probability of wall')
+        plt.title('Map')
 
         plt.subplot(224)
         plt.imshow(agent.get_entropy().T, 'jet')
