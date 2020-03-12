@@ -76,7 +76,8 @@ class GoToDoorEnv(MiniGridEnv):
 
         # Don't let the agent open any of the doors
         if action == self.actions.toggle:
-            done = True
+            #done = True
+            pass
 
         # Reward performing done action in front of the target door
         if action == self.actions.done:
