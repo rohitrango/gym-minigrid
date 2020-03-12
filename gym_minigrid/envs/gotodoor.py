@@ -25,8 +25,8 @@ class GoToDoorEnv(MiniGridEnv):
         self.grid = Grid(width, height)
 
         # Randomly vary the room width and height
-        width = self._rand_int(5, width+1)
-        height = self._rand_int(5, height+1)
+        #width = self._rand_int(5, width+1)
+        #height = self._rand_int(5, height+1)
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
