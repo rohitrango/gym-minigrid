@@ -64,6 +64,7 @@ class GoToDoorEnv(MiniGridEnv):
         #doorIdx = self._rand_int(0, len(doorPos))
         self.target_pos = doorPos[doorIdx]
         self.target_color = doorColors[doorIdx]
+        self.doorPos = doorPos
 
         # Generate the mission string
         self.mission = 'go to the %s door' % self.target_color
@@ -83,7 +84,12 @@ class GoToDoorEnv(MiniGridEnv):
         if action == self.actions.done:
             if (ax == tx and abs(ay - ty) == 1) or (ay == ty and abs(ax - tx) == 1):
                 reward = self._reward()
-            done = True
+            # Done is true if adjacent to a door
+            for dps in self.doorPos:
+                dpx, dpy = dps
+                if (ax == dpx and abs(ay - dpy) == 1) or (ay == dpy and abs(ax - dpx) == 1):
+                    done = True
+                    break
 
         return obs, reward, done, info
 
