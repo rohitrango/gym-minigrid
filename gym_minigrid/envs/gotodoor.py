@@ -55,7 +55,7 @@ class GoToDoorEnv(MiniGridEnv):
         # Place the doors in the grid
         for idx, pos in enumerate(doorPos):
             color = doorColors[idx]
-            self.grid.set(*pos, Door(color))
+            self.grid.set(*pos, Door(color, is_locked=True))
 
         # Randomize the agent start position and orientation
         self.place_agent(size=(width, height))
