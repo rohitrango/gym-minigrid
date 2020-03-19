@@ -2,6 +2,10 @@ from gym import spaces
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 
+TOGGLETIMES = {
+        'red': 5,
+        'green': 3,
+}
 class Room:
     def __init__(self,
         top,
@@ -12,6 +16,7 @@ class Room:
         self.size = size
         self.doorPos = doorPos
         self.color = None
+        self.victimcolor = None
         self.locked = False
 
     def rand_pos(self, env):
@@ -29,7 +34,13 @@ class Room:
             if len(goalsPos) == 2: #  int(num_goals):
                 break
         for goal in goalsPos:
-            env.grid.set(*goal, Box('red', toggletimes=3))
+            rand_color = 'red' if np.random.rand() < 0.5 else 'green'
+            # If new red victim comes in or previous red victim present, keep it red
+            if rand_color == 'red' or self.victimcolor == 'red':
+                self.victimcolor = 'red'
+            else:
+                self.victimcolor = 'green'
+            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color]))
 
         return goalsPos
 
@@ -45,9 +56,11 @@ class HallwayWithVictims(MiniGridEnv):
         width=25,
         height=25,
         random_door_pos=False,
+        dog=True,
     ):
-        super().__init__(width=width, height=height, max_steps=10*width*height)
         self.random_door_pos = random_door_pos
+        self.dog = dog
+        super().__init__(width=width, height=height, max_steps=10*width*height)
         self.total_reward = 0
         self.num_goals = 0
 
@@ -152,17 +165,9 @@ class HallwayWithVictims(MiniGridEnv):
         for i, room in enumerate(self.rooms):
             num_goals = self._rand_int(0, max_goals_per_room)
             # num_goals = (i) % 3
-            set_goals_RV = bool(np.random.randint(2))
+            set_goals_RV = bool(np.random.randint(2)) if i != 3 else True
             goalsPosList = room.set_goals_pos(self, num_goals, set_goals=set_goals_RV)
             self.num_goals += (2 * int(set_goals_RV))
-
-        #print('goals', self.num_goals)
-
-        # # Choose one random room to be locked
-        # lockedRoom = self._rand_elem(self.rooms)
-        # lockedRoom.locked = True
-        # goalPos = lockedRoom.rand_pos(self)
-        # self.grid.set(*goalPos, Goal())
 
         # # Assign the door colors
         colors = set(COLOR_NAMES)
@@ -175,14 +180,6 @@ class HallwayWithVictims(MiniGridEnv):
                     self.grid.set(*doorPos, Door(room.color, is_locked=True))
                 else:
                     self.grid.set(*doorPos, Door(room.color))
-
-        # # Select a random room to contain the key
-        # while True:
-        #     keyRoom = self._rand_elem(self.rooms)
-        #     if keyRoom != lockedRoom:
-        #         break
-        # keyPos = keyRoom.rand_pos(self)
-        # self.grid.set(*keyPos, Key(lockedRoom.color))
 
         # Randomize the player start position and orientation
         self.agent_pos = self.place_agent(
@@ -201,6 +198,16 @@ class HallwayWithVictims(MiniGridEnv):
         obs, reward, done, info = MiniGridEnv.step(self, action)
         fwd_cell_after = self.grid.get(*self.front_pos)
         # import ipdb; ipdb.set_trace()
+
+        # Get bark info here
+        if fwd_cell_after is not None and fwd_cell_after.type == 'door' \
+                and not fwd_cell_after.is_open and self.dog:
+            for room in self.rooms:
+                if self.front_pos[0] == room.doorPos[0][0] \
+                and self.front_pos[1] == room.doorPos[0][1]:
+                    # Set up bark value
+                    info['dog'] = room.victimcolor
+                    break
 
         if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
             # If toggled, then the box should be none or not a box
