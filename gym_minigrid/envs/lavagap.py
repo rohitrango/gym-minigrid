@@ -7,8 +7,9 @@ class LavaGapEnv(MiniGridEnv):
     This environment is similar to LavaCrossing but simpler in structure.
     """
 
-    def __init__(self, size, obstacle_type=Lava, seed=None):
+    def __init__(self, size, obstacle_type=Lava, seed=None, const=False):
         self.obstacle_type = obstacle_type
+        self.const = const
         super().__init__(
             grid_size=size,
             max_steps=4*size*size,
@@ -35,10 +36,16 @@ class LavaGapEnv(MiniGridEnv):
         self.put_obj(Goal(), *self.goal_pos)
 
         # Generate and store random gap position
-        self.gap_pos = np.array((
-            self._rand_int(2, width - 2),
-            self._rand_int(1, height - 1),
-        ))
+        if not self.const:
+            self.gap_pos = np.array((
+                self._rand_int(2, width - 2),
+                self._rand_int(1, height - 1),
+            ))
+        else:
+            self.gap_pos = np.array((
+                self.width // 2,
+                self._rand_int(1, height - 1),
+            ))
 
         # Place the obstacle wall
         self.grid.vert_wall(self.gap_pos[0], 1, height - 2, self.obstacle_type)
@@ -60,9 +67,17 @@ class LavaGapS6Env(LavaGapEnv):
     def __init__(self):
         super().__init__(size=6)
 
+class NormalGapS6Env(LavaGapEnv):
+    def __init__(self):
+        super().__init__(size=6, obstacle_type=Wall)
+
 class LavaGapS7Env(LavaGapEnv):
     def __init__(self):
         super().__init__(size=7)
+
+class LavaGapS7EnvV1(LavaGapEnv):
+    def __init__(self):
+        super().__init__(size=7, const=True)
 
 register(
     id='MiniGrid-LavaGapS5-v0',
@@ -75,6 +90,16 @@ register(
 )
 
 register(
+    id='MiniGrid-NormalGapS6-v0',
+    entry_point='gym_minigrid.envs:NormalGapS6Env'
+)
+
+register(
     id='MiniGrid-LavaGapS7-v0',
     entry_point='gym_minigrid.envs:LavaGapS7Env'
+)
+
+register(
+    id='MiniGrid-LavaGapS7-v1',
+    entry_point='gym_minigrid.envs:LavaGapS7EnvV1'
 )
