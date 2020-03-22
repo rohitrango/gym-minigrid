@@ -1,3 +1,4 @@
+import numpy as np
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 
@@ -17,7 +18,7 @@ class EmptyEnv(MiniGridEnv):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
         self.sizetop = sizetop
-        self.extra = extra
+        self.extra = extra   # extra gives a choice mode (choose lava or goal)
 
         super().__init__(
             grid_size=size,
@@ -30,12 +31,19 @@ class EmptyEnv(MiniGridEnv):
     def _gen_grid(self, width, height):
         # Create an empty grid
         self.grid = Grid(width, height)
+        if self.extra:
+            self.agent_start_pos = (1, np.random.randint(1, height-1))
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
 
         # Place a goal square in the bottom-right corner
-        self.put_obj(Goal(), width - 2, height - 2)
+        if self.extra:
+            for i in range(1, height-1):
+                self.put_obj(Lava(), width-2, i)
+            self.put_obj(Goal(), width-2, np.random.randint(2, height-2))
+        else:
+            self.put_obj(Goal(), width - 2, height - 2)
 
         # Place the agent
         if self.agent_start_pos is not None:
@@ -57,6 +65,10 @@ class EmptyRandomEnv5x5(EmptyEnv):
 class EmptyEnv6x6(EmptyEnv):
     def __init__(self):
         super().__init__(size=6)
+
+class EmptyEnv6x6Extra(EmptyEnv):
+    def __init__(self):
+        super().__init__(size=6, extra=True)
 
 class EmptyRandomEnv6x6(EmptyEnv):
     def __init__(self):
@@ -82,6 +94,11 @@ register(
 register(
     id='MiniGrid-Empty-Random-5x5-v0',
     entry_point='gym_minigrid.envs:EmptyRandomEnv5x5'
+)
+
+register(
+    id='MiniGrid-Empty-6x6-v1',
+    entry_point='gym_minigrid.envs:EmptyEnv6x6Extra'
 )
 
 register(
