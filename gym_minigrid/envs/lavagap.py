@@ -75,11 +75,11 @@ class LavaGapS7Env(LavaGapEnv):
     def __init__(self):
         super().__init__(size=7)
 
-class LavaGapS6EnvV1(LavaGapEnv):
+class LavaGapS6Envv1(LavaGapEnv):
     def __init__(self):
         super().__init__(size=6, const=True)
 
-class LavaGapS7EnvV1(LavaGapEnv):
+class LavaGapS7Envv1(LavaGapEnv):
     def __init__(self):
         super().__init__(size=7, const=True)
 
@@ -105,10 +105,10 @@ register(
 
 register(
     id='MiniGrid-LavaGapS7-v1',
-    entry_point='gym_minigrid.envs:LavaGapS7EnvV1'
+    entry_point='gym_minigrid.envs:LavaGapS7Envv1'
 )
 
 register(
     id='MiniGrid-LavaGapS6-v1',
-    entry_point='gym_minigrid.envs:LavaGapS6EnvV1'
+    entry_point='gym_minigrid.envs:LavaGapS6Envv1'
 )
