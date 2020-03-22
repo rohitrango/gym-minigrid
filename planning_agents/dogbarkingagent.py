@@ -37,7 +37,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 0
+        self.epsilon = 1e-2
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -625,23 +625,25 @@ while episodes < 1000:
 
     if 1:
         plt.clf()
-        plt.subplot(221)
+        plt.subplot(131)
         img = env.render('rgb_array')
         plt.imshow(img)
 
-        plt.subplot(222)
+        plt.subplot(132)
         plt.imshow(agent.get_prob_map(['box', 'goal']).T, 'jet')
         plt.title('Victim')
 
-        plt.subplot(223)
+        plt.subplot(133)
         plt.imshow(agent.get_prob_map(['wall']).T, 'jet')
         plt.title('Map')
 
+        '''
         plt.subplot(224)
         plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Certainty')
+        '''
         plt.draw()
-        plt.pause(0.5)
+        plt.pause(1)
 
 # Get filename
 print(agent)

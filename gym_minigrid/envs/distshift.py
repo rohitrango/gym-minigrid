@@ -8,7 +8,7 @@ class DistShiftEnv(MiniGridEnv):
 
     def __init__(
         self,
-        width=9,
+        width=7,
         height=7,
         agent_start_pos=(1,1),
         agent_start_dir=0,
