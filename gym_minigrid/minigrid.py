@@ -1167,7 +1167,8 @@ class MiniGridEnv(gym.Env):
             if fwd_cell != None and fwd_cell.type == 'lava':
                 if 'v1' in self.__class__.__name__:
                     done = False
-                    self._reward_scale = 0
+                    #self._reward_scale = 0
+                    reward = -1
                 else:
                     done = True
 
