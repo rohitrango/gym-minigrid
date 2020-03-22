@@ -742,6 +742,7 @@ class MiniGridEnv(gym.Env):
         # To keep the same grid for each episode, call env.seed() with
         # the same seed before calling env.reset()
         self._gen_grid(self.width, self.height)
+        self._reward_scale = 1
 
         # These fields should be defined by _gen_grid
         assert self.agent_pos is not None
@@ -1162,9 +1163,13 @@ class MiniGridEnv(gym.Env):
                 self.agent_pos = fwd_pos
             if fwd_cell != None and fwd_cell.type == 'goal':
                 done = True
-                reward = self._reward()
+                reward = self._reward_scale * self._reward()
             if fwd_cell != None and fwd_cell.type == 'lava':
-                done = True
+                if 'v1' in self.__class__.__name__:
+                    done = False
+                    self._reward_scale = 0
+                else:
+                    done = True
 
         # Pick up an object
         elif action == self.actions.pickup:

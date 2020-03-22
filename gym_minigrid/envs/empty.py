@@ -12,10 +12,12 @@ class EmptyEnv(MiniGridEnv):
         agent_start_pos=(1,1),
         agent_start_dir=0,
         sizetop=None,
+        extra=False,
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
         self.sizetop = sizetop
+        self.extra = extra
 
         super().__init__(
             grid_size=size,

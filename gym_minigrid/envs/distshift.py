@@ -55,6 +55,10 @@ class DistShift1(DistShiftEnv):
     def __init__(self):
         super().__init__(strip2_row=2)
 
+class DistShiftv1(DistShiftEnv):
+    def __init__(self):
+        super().__init__(strip2_row=2)
+
 class DistShift2(DistShiftEnv):
     def __init__(self):
         super().__init__(strip2_row=5)
@@ -62,6 +66,11 @@ class DistShift2(DistShiftEnv):
 register(
     id='MiniGrid-DistShift1-v0',
     entry_point='gym_minigrid.envs:DistShift1'
+)
+
+register(
+    id='MiniGrid-DistShift1-v1',
+    entry_point='gym_minigrid.envs:DistShiftv1'
 )
 
 register(
