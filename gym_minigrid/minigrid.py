@@ -401,11 +401,11 @@ class Grid:
         for j in range(0, length):
             self.set(x, y + j, obj_type())
 
-    def wall_rect(self, x, y, w, h):
-        self.horz_wall(x, y, w)
-        self.horz_wall(x, y+h-1, w)
-        self.vert_wall(x, y, h)
-        self.vert_wall(x+w-1, y, h)
+    def wall_rect(self, x, y, w, h, obj_type=Wall):
+        self.horz_wall(x, y, w, obj_type=obj_type)
+        self.horz_wall(x, y+h-1, w, obj_type=obj_type)
+        self.vert_wall(x, y, h, obj_type=obj_type)
+        self.vert_wall(x+w-1, y, h, obj_type=obj_type)
 
     def rotate_left(self):
         """

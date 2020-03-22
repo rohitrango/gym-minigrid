@@ -13,7 +13,7 @@ class EmptyEnv(MiniGridEnv):
         agent_start_pos=(1,1),
         agent_start_dir=0,
         sizetop=None,
-        extra=False,
+        extra=0,
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -27,18 +27,20 @@ class EmptyEnv(MiniGridEnv):
             see_through_walls=True
         )
 
-
     def _gen_grid(self, width, height):
         # Create an empty grid
         self.grid = Grid(width, height)
-        if self.extra:
+        if self.extra == 1:
             self.agent_start_pos = (1, np.random.randint(1, height-1))
+        elif self.extra == 2:
+            self.agent_start_dir = np.random.randint(4)
 
         # Generate the surrounding walls
-        self.grid.wall_rect(0, 0, width, height)
+        obj = Wall if self.extra < 2 else Lava
+        self.grid.wall_rect(0, 0, width, height, obj_type=obj)
 
         # Place a goal square in the bottom-right corner
-        if self.extra:
+        if self.extra == 1:
             for i in range(1, height-1):
                 self.put_obj(Lava(), width-2, i)
             self.put_obj(Goal(), width-2, np.random.randint(2, height-2))
@@ -68,7 +70,11 @@ class EmptyEnv6x6(EmptyEnv):
 
 class EmptyEnv6x6Extra(EmptyEnv):
     def __init__(self):
-        super().__init__(size=6, extra=True)
+        super().__init__(size=6, extra=1)
+
+class EmptyEnv6x6ExtraLava(EmptyEnv):
+    def __init__(self):
+        super().__init__(size=6, extra=2)
 
 class EmptyRandomEnv6x6(EmptyEnv):
     def __init__(self):
@@ -99,6 +105,11 @@ register(
 register(
     id='MiniGrid-Empty-6x6-v1',
     entry_point='gym_minigrid.envs:EmptyEnv6x6Extra'
+)
+
+register(
+    id='MiniGrid-Empty-6x6-v2',
+    entry_point='gym_minigrid.envs:EmptyEnv6x6ExtraLava'
 )
 
 register(
