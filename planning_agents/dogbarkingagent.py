@@ -37,7 +37,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 1e-2
+        self.epsilon = 0
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -86,15 +86,33 @@ class PlanAgent:
         belief = self.belief[A:-A, A:-A]
         return np.argmax(belief, 2)
 
-    def get_prob_map(self, classes, zoom_factor=4):
+    def get_prob_map(self, classes, zoom_factor=1, color=None):
         A = self.agent_view_size
         belief = self.belief[A:-A, A:-A] + 0
+        colors = self.colors[A:-A, A:-A] + 0
+
         classidx = list(map(lambda x: OBJECT_TO_IDX[x]-1, classes))
-        prob = belief[:, :, classidx].sum(2)
+        coloridx = 1
+        if color is not None:
+            coloridx = COLOR_TO_IDX[color]
+            coloridx = colors[:, :, coloridx]
+        prob = belief[:, :, classidx].sum(2) * coloridx
         if zoom_factor > 1:
             prob = zoom(prob, zoom_factor, order=1)
             prob[0, 0] = 1
         return prob
+
+    def get_belief_map_image(self):
+        # Get an image version of belief (because heatmaps are too confusing for non-statisticians)
+        A = self.agent_view_size
+        belief = self.belief[A:-A, A:-A]
+        img = np.zeros((belief.shape[0], belief.shape[1], 3)) + 0.2
+        # The walls are white in color
+        img += self.get_prob_map(['wall'])[:, :, None]
+        img[:, :, 0] += self.get_prob_map(['box'], color='red')
+        img[:, :, 1] += self.get_prob_map(['box'], color='green')
+        img = np.minimum(1, img)
+        return img
 
     @property
     def subgoal(self):
@@ -579,7 +597,7 @@ class ScouringAgent(PlanAgent):
 #########################
 ## Main code
 #########################
-env = gym.make('MiniGrid-FourRooms-v0')
+#env = gym.make('MiniGrid-FourRooms-v0')
 env = gym.make('MiniGrid-HallwayWithVictims-v0')
 #env = gym.make('MiniGrid-HallwayWithVictimsAndFire-v0')
 #env = gym.make('MiniGrid-Empty-Random-10x10-v0')
@@ -625,10 +643,16 @@ while episodes < 1000:
 
     if 1:
         plt.clf()
-        plt.subplot(131)
+        plt.subplot(121)
         img = env.render('rgb_array')
         plt.imshow(img)
+        plt.title('Actual environment')
 
+        plt.subplot(122)
+        plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        plt.title('Agent\'s belief')
+
+        '''
         plt.subplot(132)
         plt.imshow(agent.get_prob_map(['box', 'goal']).T, 'jet')
         plt.title('Victim')
@@ -637,13 +661,12 @@ while episodes < 1000:
         plt.imshow(agent.get_prob_map(['wall']).T, 'jet')
         plt.title('Map')
 
-        '''
         plt.subplot(224)
         plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Certainty')
         '''
         plt.draw()
-        plt.pause(1)
+        plt.pause(0.1)
 
 # Get filename
 print(agent)
