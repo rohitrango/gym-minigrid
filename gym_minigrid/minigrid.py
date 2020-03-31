@@ -309,13 +309,17 @@ class Ball(WorldObj):
         fill_coords(img, point_in_circle(0.5, 0.5, 0.31), COLORS[self.color])
 
 class Box(WorldObj):
-    def __init__(self, color, contains=None, toggletimes=1):
+    def __init__(self, color, contains=None, toggletimes=1, triage_color=None):
         super(Box, self).__init__('box', color)
         self.contains = contains
         self.toggletimes = toggletimes
+        self.triage_color = triage_color
 
     def can_pickup(self):
         return True
+
+    def can_overlap(self):
+        return self.color == 'grey'
 
     def render(self, img):
         c = COLORS[self.color]
@@ -330,9 +334,12 @@ class Box(WorldObj):
     def toggle(self, env, pos):
         # Replace the box by its contents
         self.toggletimes -= 1
-        if self.toggletimes <= 0:
+        if self.toggletimes <= 0 and self.triage_color is None:
             env.grid.set(*pos, self.contains)
             return True
+        elif self.toggletimes <= 0 and self.triage_color is not None:
+            self.color = self.triage_color
+            return False
         return False
 
 class Grid:

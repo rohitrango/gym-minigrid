@@ -106,11 +106,17 @@ class PlanAgent:
         # Get an image version of belief (because heatmaps are too confusing for non-statisticians)
         A = self.agent_view_size
         belief = self.belief[A:-A, A:-A]
-        img = np.zeros((belief.shape[0], belief.shape[1], 3)) + 0.2
+        img = np.zeros((belief.shape[0], belief.shape[1], 3))
         # The walls are white in color
         img += self.get_prob_map(['wall'])[:, :, None]
+        # Color code victims
         img[:, :, 0] += self.get_prob_map(['box'], color='red')
         img[:, :, 1] += self.get_prob_map(['box'], color='green')
+        #img += self.get_prob_map(['box'], color='grey')[:, :, None] * 0.5
+        # The doors are all blue
+        doors = self.get_prob_map(['door'])
+        img[:, :, 2] += doors
+
         img = np.minimum(1, img)
         return img
 
@@ -172,14 +178,16 @@ class PlanAgent:
         A = self.agent_view_size
 
         # Create a dummy victim ahead if you see some info
-        if info.get('dog', -1) in ['red', 'green'] or info.get('dog', -1) is None:
+        print(info)
+        if info.get('dog') in ['red', 'green'] or info.get('dog') == 0:
             dirvec = NUM_TO_DIR[self.agent_dir]
             fwd_cell = self.agent_pos + dirvec
             fwd_cell = fwd_cell + dirvec
 
             # Get room area
+            print("Going inside....")
             room = np.zeros(self.belief.shape[:2])
-            print(room.shape)
+            #print(room.shape)
             nodes = [fwd_cell+A]
             while len(nodes) != 0:
                 room[nodes[0][0], nodes[0][1]] = 1
@@ -205,11 +213,10 @@ class PlanAgent:
                 self.colors[y, x] = 0
                 self.belief[y, x, OBJECT_TO_IDX['box']-1] = 1
                 self.colors[y, x, COLOR_TO_IDX[info.get('dog')]] = 1
-            else:
+            elif info.get('dog') == 0:
                 self.belief[y, x] = 0
                 self.colors[y, x] = 0
                 self.belief[y, x, OBJECT_TO_IDX['empty']-1] = 1
-
 
         topX, topY, botX, botY = self.get_bounds(pos, agdir)
         h, w = img.shape[:2]
@@ -260,7 +267,7 @@ class PlanAgent:
                     self.plan = []
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
-                elif fwd_obj == 'box':
+                elif fwd_obj == 'box' :
                     self.plan = []
                     self.plan.append('toggle')
 
@@ -270,7 +277,7 @@ class PlanAgent:
             fwd_cell = self.agent_pos + dirvec
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
-            if fwd_obj == 'box':
+            if fwd_obj == 'box' :
                 self.plan = []
                 self.plan.append('toggle')
 
@@ -292,6 +299,7 @@ class PlanAgent:
         self.update(obs, info)
         self.check_safe_plan()
         if self.plan == []:
+            print("Updating plan")
             self.update_plan()
         try:
             return ACTION_TO_NUM_MAPPING[self.plan.pop()]
@@ -306,6 +314,10 @@ class PlanAgent:
             # Search for a high confidence goal according to belief
             goalcode = OBJECT_TO_IDX[pref] - 1
             probgoal = self.belief[A:-A, A:-A, goalcode]
+            # Dont get gray victims
+            if pref == 'box':
+                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['grey']])
+
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
                 return None
@@ -357,6 +369,7 @@ class PlanAgent:
         # The location should not be empty
         assert loc is not None
         self._subgoal = loc
+        print("Plan is {}".format(self._current_plan))
         # Make a plan to that location
         self.plan = self.astar(loc)
         return None
@@ -389,6 +402,7 @@ class PlanAgent:
         locations = []
         # Get belief and visited matrix
         belief = self.belief[A:-A, A:-A, :]
+        colors = self.colors[A:-A, A:-A]
         visited = belief[:, :, 0] * 0
         visited[src[0], src[1]] = 1
         # Get parents
@@ -415,10 +429,10 @@ class PlanAgent:
                 #plt.subplot(212)
                 #plt.imshow(np.argmax(self.belief, 2))
                 #plt.draw()
-                #plt.pause(0.01)
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
                 prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1]].sum()
+                #prob = prob + belief[nbr[0], nbr[1], OBJECT_TO_IDX['box']-1] * colors[nbr[0], nbr[1], COLOR_TO_IDX['grey']]
                 gc = node[1] + 1 + int(prob > 0.7)*1e50
                 # Get f
                 fc = gc + self.dist_func(nbr, dst)
@@ -496,6 +510,13 @@ class PreEmptiveAgent(PlanAgent):
     '''
     def check_safe_plan(self):
         # TODO: Check if the next step is safe, if not then delete the existing plan
+        dirvec = NUM_TO_DIR[self.agent_dir]
+        fwd_cell = self.agent_pos + dirvec
+        # Get object, color, state
+        fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
+        if fwd_obj != 'empty':
+            print(fwd_obj, fwd_color)
+
         if len(self.plan) > 0:
             if self.plan[-1] == 'forward':
                 dirvec = NUM_TO_DIR[self.agent_dir]
@@ -509,8 +530,9 @@ class PreEmptiveAgent(PlanAgent):
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
                 elif fwd_obj == 'box':
-                    self.plan = []
-                    self.plan.append('toggle')
+                    if fwd_color != COLOR_TO_IDX['grey']:
+                        self.plan = []
+                        self.plan.append('toggle')
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -519,8 +541,9 @@ class PreEmptiveAgent(PlanAgent):
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
-                self.plan = []
-                self.plan.append('toggle')
+                if fwd_color != COLOR_TO_IDX['grey']:
+                    self.plan = []
+                    self.plan.append('toggle')
 
         if self._current_plan == 'explore':
             # If you're exploring and see something
@@ -598,14 +621,15 @@ class ScouringAgent(PlanAgent):
 ## Main code
 #########################
 #env = gym.make('MiniGrid-FourRooms-v0')
-env = gym.make('MiniGrid-HallwayWithVictims-v0')
+#env = gym.make('MiniGrid-HallwayWithVictims-v0')
+env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
 #env = gym.make('MiniGrid-HallwayWithVictimsAndFire-v0')
 #env = gym.make('MiniGrid-Empty-Random-10x10-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
-#agent = PreEmptiveAgent(env)
-agent = ScouringAgent(env)
+agent = PreEmptiveAgent(env)
+#agent = ScouringAgent(env)
 obs = env.reset()
 info = {}
 agent.reset(env.get_map())
@@ -625,7 +649,7 @@ while episodes < 1000:
     #agent.update(obs)
     #act = agent.predict(obs)
     obs, rew, done, info = env.step(act)
-    print(info)
+    #print(info)
     num_steps += 1
     current_episode_actions.append(act)
     if done:
@@ -650,6 +674,7 @@ while episodes < 1000:
 
         plt.subplot(122)
         plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        #plt.imshow(agent.get_prob_map(['box']).T, 'jet')
         plt.title('Agent\'s belief')
 
         '''
@@ -666,7 +691,7 @@ while episodes < 1000:
         plt.title('Certainty')
         '''
         plt.draw()
-        plt.pause(0.1)
+        plt.pause(.05)
 
 # Get filename
 print(agent)

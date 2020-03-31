@@ -1,4 +1,5 @@
 from gym import spaces
+from matplotlib import pyplot as plt
 from gym_minigrid.minigrid import *
 from gym_minigrid.register import register
 
@@ -40,7 +41,7 @@ class Room:
                 self.victimcolor = 'red'
             else:
                 self.victimcolor = 'green'
-            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color]))
+            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color], triage_color='grey'))
 
         return goalsPos
 
@@ -206,12 +207,12 @@ class HallwayWithVictims(MiniGridEnv):
                 if self.front_pos[0] == room.doorPos[0][0] \
                 and self.front_pos[1] == room.doorPos[0][1]:
                     # Set up bark value
-                    info['dog'] = room.victimcolor
+                    info['dog'] = room.victimcolor if room.victimcolor is not None else 0
                     break
 
         if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
             # If toggled, then the box should be none or not a box
-            if fwd_cell_after is None:
+            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'grey':
                 reward = 1
             elif fwd_cell_after.type != 'box':
                 reward = 1
@@ -226,10 +227,165 @@ class HallwayWithVictimsRandom(HallwayWithVictims):
     def __init__(self, width=25, height=25):
         super().__init__(width=width, height=height, random_door_pos=True)
 
+###############################
+## SAR map from numpy array
+###############################
+index_mapping = {
+    9: 'empty',
+    8: 'agent',
+    1: 'agent',
+    2: 'door',
+    4: 'dummywall',
+    5: 'lava',
+    6: 'key',
+    7: 'box',
+    3: 'box',
+    0: 'wall',
+    10: 'obstacle',
+    -1: 'obstacle'
+}
+color_mapping = {
+    9: '',
+    8: '',
+    1: '',
+    2: 'green',
+    4: 'grey',
+    5: '',
+    6: 'yellow',
+    7: '',
+    3: '',
+    0: '',
+    10: 'green',
+    -1: 'red'
+}
+
+class HallwayWithVictimsSARmap(HallwayWithVictims):
+    def __init__(
+        self,
+        width=50,
+        height=50,
+        random_door_pos=False,
+        dog=True,):
+        # init the grid
+        self.num_goals = 0
+        super().__init__(width=width, height=height, random_door_pos=random_door_pos,dog=dog)
+
+    def _gen_grid(self, *args, **kwargs):
+        # Here goes our map
+        mapfile = '../gym_minigrid/grid.npy'
+        data = np.load(mapfile).T
+        w, h = data.shape
+
+        self.grid = Grid(w, h)
+        self.grid.wall_rect(0, 0, w, h)
+        for i in range(1, w-1):
+            for j in range(1, h-1):
+                idx = int(data[i, j])
+                entity_name = index_mapping[idx]
+                color = color_mapping[idx]
+
+                if entity_name == '':
+                    continue
+                elif entity_name in ['wall', 'obstacle']:
+                    self.put_obj(Wall(), i, j)
+                elif entity_name == 'box':
+                    color = 'red' if np.random.rand() < 0.5 else 'green'
+                    self.put_obj(Box(color, toggletimes=TOGGLETIMES[color], triage_color='grey'), i, j)
+                    self.num_goals += 1
+                elif entity_name == 'door':
+                    self.put_obj(Door(color='blue'), i, j)
+                elif entity_name == 'agent':
+                    # Place the agent here
+                    self.agent_pos = (i, j)
+
+        self.place_agent()
+        self.mission = 'Triage all victims'
+
+    def get_dogvalue(self, door_pos, agent_pos):
+        # Given agent pos and door pos, estimate the room, get all victims in it
+        # and return a dog bark
+        # If the room is too big, then return nothing
+        grid = self.grid
+        room = np.zeros((grid.width, grid.height))
+        dirx = door_pos[0] - agent_pos[0]
+        diry = door_pos[1] - agent_pos[1]
+        firstpos = np.array((door_pos[0] + dirx, door_pos[1] + diry))
+        # Get nodes
+        nodes = [firstpos]
+        while len(nodes) != 0:
+            room[nodes[0][0], nodes[0][1]] = 1
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    nbr = nodes[0] + (dx, dy)
+                    cell = grid.get(*nbr)
+                    if cell is not None and cell.type in ['door', 'wall']:
+                        continue
+                    if room[nbr[0], nbr[1]] == 0:
+                        nodes.append(nbr)
+            nodes = nodes[1:]
+
+        # This is too big of a room
+        #plt.figure()
+        #plt.imshow(room.T)
+        #plt.show()
+        max_room_size = 200
+        if room.sum() > max_room_size:
+            print("Too big room (you shouldn't see many of these warnings...)")
+            return None
+
+        # Not too big
+        # Check for red and green victims inside these rooms
+        x, y = np.where(room == 1)
+        redcount = greencount = 0
+        for xc, yc in zip(x, y):
+            cell = grid.get(xc, yc)
+            if cell is not None and cell.type == 'box':
+                if cell.color == 'red':
+                    redcount += 1
+                elif cell.color == 'green':
+                    greencount += 1
+        # Give out a bark now
+        if redcount > 0:
+            return 'red'
+        elif greencount > 0:
+            return 'green'
+        return 0
+
+
+
+    def step(self, action):
+        fwd_cell = self.grid.get(*self.front_pos)
+        obs, reward, done, info = MiniGridEnv.step(self, action)
+        fwd_cell_after = self.grid.get(*self.front_pos)
+        # import ipdb; ipdb.set_trace()
+
+        # Get bark info here
+        if fwd_cell_after is not None and fwd_cell_after.type == 'door' \
+                and not fwd_cell_after.is_open and self.dog:
+            # Get a dog feedback here
+            info['dog'] = self.get_dogvalue(self.front_pos, self.agent_pos)
+
+        if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
+            # If toggled, then the box should be none or not a box
+            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'grey':
+                reward = 1
+            elif fwd_cell_after.type != 'box':
+                reward = 1
+            # Add total reward
+            self.total_reward += reward
+            if self.total_reward >= self.num_goals:
+                done = True
+
+        return obs, reward, done, info
 
 register(
     id='MiniGrid-HallwayWithVictims-v0',
     entry_point='gym_minigrid.envs:HallwayWithVictims'
+)
+
+register(
+    id='MiniGrid-HallwayWithVictims-SARmap-v0',
+    entry_point='gym_minigrid.envs:HallwayWithVictimsSARmap'
 )
 
 register(
