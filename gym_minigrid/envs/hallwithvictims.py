@@ -20,6 +20,9 @@ class Room:
         self.victimcolor = None
         self.locked = False
 
+        self.redcount = 0
+        self.greencount = 0
+
     def rand_pos(self, env):
         topX, topY = self.top
         sizeX, sizeY = self.size
@@ -36,12 +39,16 @@ class Room:
                 break
         for goal in goalsPos:
             rand_color = 'red' if np.random.rand() < 0.5 else 'green'
+            if rand_color == 'red':
+                self.redcount += 1
+            else:
+                self.greencount += 1
             # If new red victim comes in or previous red victim present, keep it red
             if rand_color == 'red' or self.victimcolor == 'red':
                 self.victimcolor = 'red'
             else:
                 self.victimcolor = 'green'
-            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color], triage_color='grey'))
+            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color], triage_color='yellow'))
 
         return goalsPos
 
@@ -208,11 +215,14 @@ class HallwayWithVictims(MiniGridEnv):
                 and self.front_pos[1] == room.doorPos[0][1]:
                     # Set up bark value
                     info['dog'] = room.victimcolor if room.victimcolor is not None else 0
+                    if info['dog'] in ['red', 'green']:
+                        info['red'] = room.redcount
+                        info['green'] = room.greencount
                     break
 
         if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
             # If toggled, then the box should be none or not a box
-            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'grey':
+            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'yellow':
                 reward = 1
             elif fwd_cell_after.type != 'box':
                 reward = 1
@@ -290,10 +300,12 @@ class HallwayWithVictimsSARmap(HallwayWithVictims):
                     self.put_obj(Wall(), i, j)
                 elif entity_name == 'box':
                     color = 'red' if np.random.rand() < 0.5 else 'green'
-                    self.put_obj(Box(color, toggletimes=TOGGLETIMES[color], triage_color='grey'), i, j)
+                    self.put_obj(Box(color, toggletimes=TOGGLETIMES[color], triage_color='yellow'), i, j)
                     self.num_goals += 1
                 elif entity_name == 'door':
                     self.put_obj(Door(color='blue'), i, j)
+                elif entity_name == 'lava':
+                    self.put_obj(Lava(), i, j)
                 elif entity_name == 'agent':
                     # Place the agent here
                     self.agent_pos = (i, j)
@@ -331,7 +343,7 @@ class HallwayWithVictimsSARmap(HallwayWithVictims):
         max_room_size = 200
         if room.sum() > max_room_size:
             print("Too big room (you shouldn't see many of these warnings...)")
-            return None
+            return None, None, None
 
         # Not too big
         # Check for red and green victims inside these rooms
@@ -346,10 +358,10 @@ class HallwayWithVictimsSARmap(HallwayWithVictims):
                     greencount += 1
         # Give out a bark now
         if redcount > 0:
-            return 'red'
+            return 'red', redcount, greencount
         elif greencount > 0:
-            return 'green'
-        return 0
+            return 'green', redcount, greencount
+        return 0, 0, 0
 
 
 
@@ -363,11 +375,13 @@ class HallwayWithVictimsSARmap(HallwayWithVictims):
         if fwd_cell_after is not None and fwd_cell_after.type == 'door' \
                 and not fwd_cell_after.is_open and self.dog:
             # Get a dog feedback here
-            info['dog'] = self.get_dogvalue(self.front_pos, self.agent_pos)
+            info['dog'], r, g = self.get_dogvalue(self.front_pos, self.agent_pos)
+            info['red'] = r
+            info['green'] = g
 
         if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
             # If toggled, then the box should be none or not a box
-            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'grey':
+            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'yellow':
                 reward = 1
             elif fwd_cell_after.type != 'box':
                 reward = 1

@@ -319,7 +319,7 @@ class Box(WorldObj):
         return True
 
     def can_overlap(self):
-        return self.color == 'grey'
+        return self.color == self.triage_color
 
     def render(self, img):
         c = COLORS[self.color]

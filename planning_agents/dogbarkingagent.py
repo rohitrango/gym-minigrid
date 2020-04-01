@@ -57,6 +57,9 @@ class PlanAgent:
         self._subgoal = None
         self._current_plan = None
 
+        # Dog maximum likelihood graph
+        self.dogmlgraph = {'red': [0, 0, 0], 'green': [0, 0, 0]}
+
 
     def reset(self, nmap):
         self.belief = np.ones((self.width + 2*self.agent_view_size, self.height + 2*self.agent_view_size, self.numobjects)) / self.numobjects
@@ -112,7 +115,7 @@ class PlanAgent:
         # Color code victims
         img[:, :, 0] += self.get_prob_map(['box'], color='red')
         img[:, :, 1] += self.get_prob_map(['box'], color='green')
-        #img += self.get_prob_map(['box'], color='grey')[:, :, None] * 0.5
+        #img += self.get_prob_map(['box'], color='yellow')[:, :, None] * 0.5
         # The doors are all blue
         doors = self.get_prob_map(['door'])
         img[:, :, 2] += doors
@@ -166,6 +169,21 @@ class PlanAgent:
         return (topX, topY, botX, botY)
 
 
+    def get_dogml_info(self):
+        rval = self.dogmlgraph['red']
+        gval = self.dogmlgraph['green']
+        rr = np.around(rval[1]/rval[0], 2) if rval[0] > 0 else 'unknown'
+        rg = np.around(rval[2]/rval[0], 2) if rval[0] > 0 else 'unknown'
+
+        gr = np.around(gval[1]/gval[0], 2) if gval[0] > 0 else 'unknown'
+        gg = np.around(gval[2]/gval[0], 2) if gval[0] > 0 else 'unknown'
+
+        stri = 'Two barks: P(red victim) = {}, P(green victim) = {} \n'.format(rr, rg)
+        stri += 'One bark: P(red victim) = {}, P(green victim) = {}\n'.format(gr, gg)
+        stri += 'Current plan: {}'.format(self._current_plan)
+        return stri
+
+
     def update(self, obs, info):
         # Given the observation, update your belief
         img = obs['image']
@@ -177,8 +195,16 @@ class PlanAgent:
         self.agent_dir = agdir
         A = self.agent_view_size
 
+        # Update victims if some info is present
+        if info.get('dog') in ['red', 'green']:
+            key = info['dog']
+            r = int(info['red'] > 0)
+            g = int(info['green'] > 0)
+            self.dogmlgraph[key][0] += 1
+            self.dogmlgraph[key][1] += r
+            self.dogmlgraph[key][2] += g
+
         # Create a dummy victim ahead if you see some info
-        print(info)
         if info.get('dog') in ['red', 'green'] or info.get('dog') == 0:
             dirvec = NUM_TO_DIR[self.agent_dir]
             fwd_cell = self.agent_pos + dirvec
@@ -193,6 +219,9 @@ class PlanAgent:
                 room[nodes[0][0], nodes[0][1]] = 1
                 for dx in [-1, 0, 1]:
                     for dy in [-1, 0, 1]:
+                        if abs(dx) + abs(dy) != 1:
+                            continue
+
                         nbr = nodes[0] + (dx, dy)
                         if self.belief[nbr[0], nbr[1], OBJECT_TO_IDX['wall']-1] > 0.5 \
                             or self.belief[nbr[0], nbr[1], OBJECT_TO_IDX['door']-1] > 0.5: \
@@ -316,7 +345,7 @@ class PlanAgent:
             probgoal = self.belief[A:-A, A:-A, goalcode]
             # Dont get gray victims
             if pref == 'box':
-                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['grey']])
+                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['yellow']])
 
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
@@ -363,7 +392,7 @@ class PlanAgent:
         for pref in self.preferences:
             loc = self.get_location_from_preference(pref)
             if loc is not None:
-                self._current_plan = pref
+                self._current_plan = pref if pref != 'box' else 'Victim'
                 break
 
         # The location should not be empty
@@ -432,7 +461,7 @@ class PlanAgent:
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
                 prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1]].sum()
-                #prob = prob + belief[nbr[0], nbr[1], OBJECT_TO_IDX['box']-1] * colors[nbr[0], nbr[1], COLOR_TO_IDX['grey']]
+                #prob = prob + belief[nbr[0], nbr[1], OBJECT_TO_IDX['box']-1] * colors[nbr[0], nbr[1], COLOR_TO_IDX['yellow']]
                 gc = node[1] + 1 + int(prob > 0.7)*1e50
                 # Get f
                 fc = gc + self.dist_func(nbr, dst)
@@ -530,7 +559,7 @@ class PreEmptiveAgent(PlanAgent):
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
                 elif fwd_obj == 'box':
-                    if fwd_color != COLOR_TO_IDX['grey']:
+                    if fwd_color != COLOR_TO_IDX['yellow']:
                         self.plan = []
                         self.plan.append('toggle')
 
@@ -541,7 +570,7 @@ class PreEmptiveAgent(PlanAgent):
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
-                if fwd_color != COLOR_TO_IDX['grey']:
+                if fwd_color != COLOR_TO_IDX['yellow']:
                     self.plan = []
                     self.plan.append('toggle')
 
@@ -620,11 +649,8 @@ class ScouringAgent(PlanAgent):
 #########################
 ## Main code
 #########################
-#env = gym.make('MiniGrid-FourRooms-v0')
 #env = gym.make('MiniGrid-HallwayWithVictims-v0')
 env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
-#env = gym.make('MiniGrid-HallwayWithVictimsAndFire-v0')
-#env = gym.make('MiniGrid-Empty-Random-10x10-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
@@ -649,6 +675,8 @@ while episodes < 1000:
     #agent.update(obs)
     #act = agent.predict(obs)
     obs, rew, done, info = env.step(act)
+    if info != {}:
+        print(info)
     #print(info)
     num_steps += 1
     current_episode_actions.append(act)
@@ -670,12 +698,13 @@ while episodes < 1000:
         plt.subplot(121)
         img = env.render('rgb_array')
         plt.imshow(img)
-        plt.title('Actual environment')
+        plt.title('Ground truth')
 
         plt.subplot(122)
         plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
         #plt.imshow(agent.get_prob_map(['box']).T, 'jet')
         plt.title('Agent\'s belief')
+        plt.suptitle(agent.get_dogml_info())
 
         '''
         plt.subplot(132)
