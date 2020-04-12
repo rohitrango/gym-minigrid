@@ -101,6 +101,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 env = gym.make(args.env)
+env = DACWrapper(env)
 # env = gym.wrappers.Monitor(env, "recording")
 #env = gym.wrappers.Monitor(env, "./vid", video_callable=lambda episode_id: True,force=True)
 if args.agent_view:

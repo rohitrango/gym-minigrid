@@ -1,5 +1,6 @@
 import math
 import operator
+from copy import deepcopy
 from functools import reduce
 from queue import deque
 
@@ -29,6 +30,58 @@ class ReseedWrapper(gym.core.Wrapper):
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
+
+
+class DACWrapper(gym.core.Wrapper):
+    '''
+    Wrapper to zero out the env when episode ends
+    '''
+    def __init__(self, env):
+        super().__init__(env)
+        self.env_done = False
+        self.last_obs = None
+
+    def reset(self, **kwargs):
+        obs = self.env.reset(**kwargs)
+        self.env_done = False
+        self.last_obs = obs
+        if isinstance(obs, dict):
+            self.last_obs = dict()
+            for k, v in obs.items():
+                self.last_obs[k] = deepcopy(v)
+            self.last_obs['image'] = obs['image']*0 + 1
+        else:
+            self.last_obs = obs*0 + 1
+        self.count = 0
+        return obs
+
+    def step(self, action):
+        self.count += 1
+        if self.env_done:
+            # Done if time out
+            if self.count >= self.env.max_steps:
+                return self.last_obs, 0, True, {}
+            else:
+                return self.last_obs, 0, False, {}
+        else:
+            # Env is not done, go on
+            obs, rew, done, info = self.env.step(action)
+            if not done:
+                return obs, rew, done, info
+            else:
+                # Done
+                obs = self.last_obs
+                self.env_done = True
+                if self.count >= self.env.max_steps:
+                    return obs, rew, True, info
+                else:
+                    return obs, rew, False, info
+
+    def render(self, *args, **kwargs):
+        img = self.env.render(*args, **kwargs)
+        if self.env_done:
+            img = img*0
+        return img
 
 
 class ActionBonus(gym.core.Wrapper):
