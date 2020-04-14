@@ -4,6 +4,7 @@ from enum import IntEnum
 import numpy as np
 from gym import error, spaces, utils
 from gym.utils import seeding
+from matplotlib import pyplot as plt
 from .rendering import *
 
 # Size in pixels of a tile in the full-scale human view
@@ -1308,7 +1309,7 @@ class MiniGridEnv(gym.Env):
 
         return img
 
-    def render(self, mode='human', close=False, highlight=True, tile_size=TILE_PIXELS):
+    def render(self, mode='human', close=False, highlight=True, tile_size=TILE_PIXELS, hide_invisible=False):
         """
         Render the whole-grid human view
         """
@@ -1360,6 +1361,15 @@ class MiniGridEnv(gym.Env):
             self.agent_dir,
             highlight_mask=highlight_mask if highlight else None
         )
+
+        if hide_invisible:
+            print(img.shape, highlight_mask.shape, tile_size)
+            hmap = np.zeros(img.shape[:2]).astype(int)
+            for i in range(tile_size):
+                for j in range(tile_size):
+                    hmap[i::tile_size, j::tile_size] = highlight_mask.astype(int) + 0
+            hmap = hmap.T
+            img = img * hmap[:, :, None]
 
         if mode == 'human':
             self.window.show_img(img)

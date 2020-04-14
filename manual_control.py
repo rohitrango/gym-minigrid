@@ -10,7 +10,7 @@ from gym_minigrid.window import Window
 
 def redraw(img):
     if not args.agent_view:
-        img = env.render('rgb_array', tile_size=args.tile_size)
+        img = env.render('rgb_array', tile_size=args.tile_size, hide_invisible=True)
 
     window.show_img(img)
 
@@ -19,7 +19,7 @@ def reset():
         env.seed(args.seed)
 
     obs = env.reset()
-    print(obs['image'].shape)
+    #print(obs['image'].shape)
 
     if hasattr(env, 'mission'):
         print('Mission: %s' % env.mission)
@@ -101,7 +101,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 env = gym.make(args.env)
-env = DACWrapper(env)
+#env = DACWrapper(env)
 # env = gym.wrappers.Monitor(env, "recording")
 #env = gym.wrappers.Monitor(env, "./vid", video_callable=lambda episode_id: True,force=True)
 if args.agent_view:
