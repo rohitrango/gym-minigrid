@@ -5,7 +5,7 @@ from gym_minigrid.register import register
 
 TOGGLETIMES = {
         'red': 5,
-        'green': 3,
+        'yellow': 3,
 }
 class Room:
     def __init__(self,
@@ -38,7 +38,7 @@ class Room:
             if len(goalsPos) == 2: #  int(num_goals):
                 break
         for goal in goalsPos:
-            rand_color = 'red' if np.random.rand() < 0.5 else 'green'
+            rand_color = 'red' if np.random.rand() < 0.5 else 'yellow'
             if rand_color == 'red':
                 self.redcount += 1
             else:
@@ -47,8 +47,8 @@ class Room:
             if rand_color == 'red' or self.victimcolor == 'red':
                 self.victimcolor = 'red'
             else:
-                self.victimcolor = 'green'
-            env.grid.set(*goal, Box(rand_color, toggletimes=TOGGLETIMES[rand_color], triage_color='yellow'))
+                self.victimcolor = 'yellow'
+            env.grid.set(*goal, Goal(rand_color, toggletimes=TOGGLETIMES[rand_color], triage_color='green'))
 
         return goalsPos
 
@@ -203,6 +203,7 @@ class HallwayWithVictims(MiniGridEnv):
 
     def step(self, action):
         fwd_cell = self.grid.get(*self.front_pos)
+        fwd_color = fwd_cell.color if fwd_cell is not None else None
         obs, reward, done, info = MiniGridEnv.step(self, action)
         fwd_cell_after = self.grid.get(*self.front_pos)
         # import ipdb; ipdb.set_trace()
@@ -215,16 +216,17 @@ class HallwayWithVictims(MiniGridEnv):
                 and self.front_pos[1] == room.doorPos[0][1]:
                     # Set up bark value
                     info['dog'] = room.victimcolor if room.victimcolor is not None else 0
-                    if info['dog'] in ['red', 'green']:
+                    if info['dog'] in ['red', 'yellow']:
                         info['red'] = room.redcount
-                        info['green'] = room.greencount
+                        info['yellow'] = room.greencount
                     break
 
-        if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'box':
-            # If toggled, then the box should be none or not a box
-            if fwd_cell_after.type == 'box' and fwd_cell_after.color == 'yellow':
+        # Toggle a goal
+        if action == self.actions.toggle and fwd_cell is not None and fwd_cell.type == 'goal':
+            # If toggled, then the goal should be none or not a goal
+            if fwd_cell_after.type == 'goal' and fwd_cell_after.color == 'green' and fwd_color != 'green':
                 reward = 1
-            elif fwd_cell_after.type != 'box':
+            elif fwd_cell_after.type != 'goal':
                 reward = 1
             # Add total reward
             self.total_reward += reward

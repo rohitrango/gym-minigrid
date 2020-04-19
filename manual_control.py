@@ -10,7 +10,7 @@ from gym_minigrid.window import Window
 
 def redraw(img):
     if not args.agent_view:
-        img = env.render('rgb_array', tile_size=args.tile_size, hide_invisible=True)
+        img = env.render('rgb_array', tile_size=args.tile_size, hide_invisible=False)
 
     window.show_img(img)
 
@@ -29,6 +29,7 @@ def reset():
 
 def step(action):
     obs, reward, done, info = env.step(action)
+    print(info)
     print('step=%s, reward=%.2f' % (env.step_count, reward))
 
     if done:

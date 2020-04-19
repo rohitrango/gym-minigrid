@@ -152,14 +152,32 @@ class WorldObj:
         raise NotImplementedError
 
 class Goal(WorldObj):
-    def __init__(self):
-        super().__init__('goal', 'green')
+    def __init__(self, color='green', toggletimes=0, triage_color=None):
+        self.toggletimes = toggletimes
+        self.overlap = toggletimes <= 0 # if toggletimes is lt 0, overlap then
+        self.triage_color = triage_color
+        super().__init__('goal', color)
 
     def can_overlap(self):
-        return True
+        return self.overlap or self.triage_color == self.color
 
     def render(self, img):
         fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
+
+    def toggle(self, env, pos):
+        if not self.overlap:
+            # Replace the box by its contents
+            self.toggletimes -= 1
+            if self.toggletimes <= 0 and self.triage_color is None:
+                env.grid.set(*pos, None)
+                return True
+            elif self.toggletimes <= 0 and self.triage_color is not None:
+                self.color = self.triage_color
+                return False
+            return False
+        else:
+            return False
+
 
 class Floor(WorldObj):
     """
@@ -1169,7 +1187,7 @@ class MiniGridEnv(gym.Env):
         elif action == self.actions.forward:
             if fwd_cell == None or fwd_cell.can_overlap():
                 self.agent_pos = fwd_pos
-            if fwd_cell != None and fwd_cell.type == 'goal':
+            if fwd_cell != None and fwd_cell.type == 'goal' and fwd_cell.overlap:
                 done = True
                 reward = self._reward_scale * self._reward()
             if fwd_cell != None and fwd_cell.type == 'lava':
@@ -1211,7 +1229,7 @@ class MiniGridEnv(gym.Env):
                 if action == self.actions.strafe_left:
                     if left_cell == None or left_cell.can_overlap():
                         self.agent_pos = left_pos
-                    if left_cell != None and left_cell.type == 'goal':
+                    if left_cell != None and left_cell.type == 'goal' and left_cell.overlap:
                         done = True
                         reward = self._reward()
                     if left_cell != None and left_cell.type == 'lava':
@@ -1220,7 +1238,7 @@ class MiniGridEnv(gym.Env):
                 elif action == self.actions.strafe_right:
                     if right_cell == None or right_cell.can_overlap():
                         self.agent_pos = right_pos
-                    if right_cell != None and right_cell.type == 'goal':
+                    if right_cell != None and right_cell.type == 'goal' and left_cell.overlap:
                         done = True
                         reward = self._reward()
                     if right_cell != None and right_cell.type == 'lava':

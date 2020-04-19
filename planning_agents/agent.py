@@ -26,6 +26,8 @@ ACTION_TO_NUM_MAPPING = {
     'done': 6,
 }
 IDX_TO_OBJECT = dict([(v, k) for k, v in OBJECT_TO_IDX.items()])
+VICTIMCOLORS = ['red', 'yellow']
+VICTIMCOLORS = list(map(lambda x: COLOR_TO_IDX[x], VICTIMCOLORS))
 
 class PlanAgent:
     # Agent that has a plan! :D
@@ -37,7 +39,7 @@ class PlanAgent:
         self.width = self.env.width
         self.height = self.env.height
 
-        self.epsilon = 1e-2
+        self.epsilon = 0
         self.numobjects = len(OBJECT_TO_IDX) - 1
         self.numcolors = len(COLOR_TO_IDX)
         self.numstates = len(STATE_TO_IDX)
@@ -71,7 +73,6 @@ class PlanAgent:
         self.agent_dir = None
         self._subgoal = None
         self._current_plan = None
-
 
     def get_max_belief(self):
         A = self.agent_view_size
@@ -195,7 +196,11 @@ class PlanAgent:
                         self.plan.append('toggle')
                 elif fwd_obj == 'box':
                     self.plan = []
+                    self.plan.insert(0, 'toggle')
+                elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
+                    self.plan = []
                     self.plan.append('toggle')
+
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -204,6 +209,9 @@ class PlanAgent:
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
+                self.plan = []
+                self.plan.insert(0, 'toggle')
+            if fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
 
@@ -235,10 +243,15 @@ class PlanAgent:
 
     def get_location_from_preference(self, pref):
         A = self.agent_view_size
+        victimidx = [COLOR_TO_IDX['red'], COLOR_TO_IDX['yellow']]
         if pref in ['goal', 'box', 'door']:
             # Search for a high confidence goal according to belief
             goalcode = OBJECT_TO_IDX[pref] - 1
-            probgoal = self.belief[A:-A, A:-A, goalcode]
+            probgoal = self.belief[A:-A, A:-A, goalcode] + 0
+            if pref == 'goal':
+                colors = self.colors[A:-A, A:-A, victimidx].sum(2) + 0
+                probgoal = probgoal * colors
+
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
                 return None
@@ -342,13 +355,6 @@ class PlanAgent:
             for nbr in nbrs:
                 if visited[nbr[0], nbr[1]]:
                     continue
-                #plt.clf()
-                #plt.subplot(211)
-                #plt.imshow(visited)
-                #plt.subplot(212)
-                #plt.imshow(np.argmax(self.belief, 2))
-                #plt.draw()
-                #plt.pause(0.01)
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
                 prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1]].sum()
@@ -443,7 +449,11 @@ class PreEmptiveAgent(PlanAgent):
                         self.plan.append('toggle')
                 elif fwd_obj == 'box':
                     self.plan = []
+                    self.plan.insert(0, 'toggle')
+                elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
+                    self.plan = []
                     self.plan.append('toggle')
+
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -453,7 +463,11 @@ class PreEmptiveAgent(PlanAgent):
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
                 self.plan = []
+                self.plan.insert(0, 'toggle')
+            elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
+                self.plan = []
                 self.plan.append('toggle')
+
 
         if self._current_plan == 'explore':
             # If you're exploring and see something
@@ -504,7 +518,11 @@ class ScouringAgent(PlanAgent):
 
                 elif fwd_obj == 'box':
                     self.plan = []
+                    self.plan.insert(0, 'toggle')
+                elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
+                    self.plan = []
                     self.plan.append('toggle')
+
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -513,6 +531,9 @@ class ScouringAgent(PlanAgent):
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
+                self.plan = []
+                self.plan.insert(0, 'toggle')
+            elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
 
@@ -537,8 +558,8 @@ env = gym.make('MiniGrid-HallwayWithVictims-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
-#agent = PreEmptiveAgent(env)
-agent = ScouringAgent(env)
+agent = PreEmptiveAgent(env)
+#agent = ScouringAgent(env)
 obs = env.reset()
 act = agent.predict(obs)
 #agent.update(obs)
