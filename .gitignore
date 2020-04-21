@@ -11,3 +11,6 @@ tags
 #
 vid/*
 */*csv
+me1.pkl me2.pkl
+*/*pkl
+*pkl

@@ -188,6 +188,16 @@ class AgentExtraInfoWrapper(gym.core.ObservationWrapper):
         grid = grid[:, :, 0]
         return grid
 
+    def get_full_map(self):
+        env = self.env
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+        return full_grid.astype(np.uint8)
+
 
 class OneHotPartialObsWrapper(gym.core.ObservationWrapper):
     """

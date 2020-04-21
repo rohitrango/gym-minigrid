@@ -3,12 +3,20 @@ Base agents that observe partial environments and take actions based on preferen
 '''
 import numpy as np
 from matplotlib import pyplot as plt
+import pickle as pkl
 import gym
 from heapq import *
 import gym_minigrid
 from scipy.ndimage import zoom
 from gym_minigrid import wrappers
 from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+
+#############
+# Set value of save here
+save = True
+print1 = print
+if save:
+    print = lambda *x: None
 
 DIR_TO_NUM = {
     (1, 0): 0,
@@ -26,6 +34,8 @@ ACTION_TO_NUM_MAPPING = {
     'done': 6,
 }
 IDX_TO_OBJECT = dict([(v, k) for k, v in OBJECT_TO_IDX.items()])
+VICTIMCOLORS = ['red', 'yellow']
+VICTIMCOLORS = list(map(lambda x: COLOR_TO_IDX[x], VICTIMCOLORS))
 
 class PlanAgent:
     # Agent that has a plan! :D
@@ -58,7 +68,7 @@ class PlanAgent:
         self._current_plan = None
 
         # Dog maximum likelihood graph
-        self.dogmlgraph = {'red': [0, 0, 0], 'green': [0, 0, 0]}
+        self.dogmlgraph = {'red': [0, 0, 0], 'yellow': [0, 0, 0]}
 
 
     def reset(self, nmap):
@@ -113,9 +123,10 @@ class PlanAgent:
         # The walls are white in color
         img += self.get_prob_map(['wall'])[:, :, None]
         # Color code victims
-        img[:, :, 0] += self.get_prob_map(['box'], color='red')
-        img[:, :, 1] += self.get_prob_map(['box'], color='green')
-        #img += self.get_prob_map(['box'], color='yellow')[:, :, None] * 0.5
+        img[:, :, 0] += self.get_prob_map(['goal'], color='red')
+        img[:, :, 0] += self.get_prob_map(['goal'], color='yellow')
+        img[:, :, 1] += self.get_prob_map(['goal'], color='yellow')
+        #img += self.get_prob_map(['goal'], color='yellow')[:, :, None] * 0.5
         # The doors are all blue
         doors = self.get_prob_map(['door'])
         img[:, :, 2] += doors
@@ -171,15 +182,15 @@ class PlanAgent:
 
     def get_dogml_info(self):
         rval = self.dogmlgraph['red']
-        gval = self.dogmlgraph['green']
+        gval = self.dogmlgraph['yellow']
         rr = np.around(rval[1]/rval[0], 2) if rval[0] > 0 else 'unknown'
         rg = np.around(rval[2]/rval[0], 2) if rval[0] > 0 else 'unknown'
 
         gr = np.around(gval[1]/gval[0], 2) if gval[0] > 0 else 'unknown'
         gg = np.around(gval[2]/gval[0], 2) if gval[0] > 0 else 'unknown'
 
-        stri = 'Two barks: P(red victim) = {}, P(green victim) = {} \n'.format(rr, rg)
-        stri += 'One bark: P(red victim) = {}, P(green victim) = {}\n'.format(gr, gg)
+        stri = 'Two barks: P(red victim) = {}, P(yellow victim) = {} \n'.format(rr, rg)
+        stri += 'One bark: P(red victim) = {}, P(yellow victim) = {}\n'.format(gr, gg)
         stri += 'Current plan: {}'.format(self._current_plan)
         return stri
 
@@ -196,16 +207,16 @@ class PlanAgent:
         A = self.agent_view_size
 
         # Update victims if some info is present
-        if info.get('dog') in ['red', 'green']:
+        if info.get('dog') in ['red', 'yellow']:
             key = info['dog']
             r = int(info['red'] > 0)
-            g = int(info['green'] > 0)
+            g = int(info['yellow'] > 0)
             self.dogmlgraph[key][0] += 1
             self.dogmlgraph[key][1] += r
             self.dogmlgraph[key][2] += g
 
         # Create a dummy victim ahead if you see some info
-        if info.get('dog') in ['red', 'green'] or info.get('dog') == 0:
+        if info.get('dog') in ['red', 'yellow'] or info.get('dog') == 0:
             dirvec = NUM_TO_DIR[self.agent_dir]
             fwd_cell = self.agent_pos + dirvec
             fwd_cell = fwd_cell + dirvec
@@ -234,13 +245,13 @@ class PlanAgent:
             '''
             self.belief[A + fwd_cell[0], A + fwd_cell[1]] = 0
             self.colors[A + fwd_cell[0], A + fwd_cell[1]] = 0
-            self.belief[A + fwd_cell[0], A + fwd_cell[1], OBJECT_TO_IDX['box']-1] = 1
+            self.belief[A + fwd_cell[0], A + fwd_cell[1], OBJECT_TO_IDX['goal']-1] = 1
             self.colors[A + fwd_cell[0], A + fwd_cell[1], COLOR_TO_IDX[info.get('dog')]] = 1
             '''
-            if info.get('dog') in ['red', 'green']:
+            if info.get('dog') in ['red', 'yellow']:
                 self.belief[y, x] = 0
                 self.colors[y, x] = 0
-                self.belief[y, x, OBJECT_TO_IDX['box']-1] = 1
+                self.belief[y, x, OBJECT_TO_IDX['goal']-1] = 1
                 self.colors[y, x, COLOR_TO_IDX[info.get('dog')]] = 1
             elif info.get('dog') == 0:
                 self.belief[y, x] = 0
@@ -297,6 +308,8 @@ class PlanAgent:
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
                 elif fwd_obj == 'box' :
+                    self.plan.insert(0, 'toggle')
+                elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                     self.plan = []
                     self.plan.append('toggle')
 
@@ -307,6 +320,9 @@ class PlanAgent:
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box' :
+                self.plan = []
+                self.plan.insert(0, 'toggle')
+            elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
 
@@ -344,8 +360,8 @@ class PlanAgent:
             goalcode = OBJECT_TO_IDX[pref] - 1
             probgoal = self.belief[A:-A, A:-A, goalcode]
             # Dont get gray victims
-            if pref == 'box':
-                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['yellow']])
+            if pref == 'goal':
+                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['green']])
 
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
@@ -357,7 +373,6 @@ class PlanAgent:
                 x, y = x[doorstate], y[doorstate]
                 if len(x) == 0:
                     return None
-
             # Get the one with min index
             minidx = np.argmin(np.abs(x - self.agent_pos[0]) + np.abs(y - self.agent_pos[1]))
             return [x[minidx], y[minidx]]
@@ -392,7 +407,7 @@ class PlanAgent:
         for pref in self.preferences:
             loc = self.get_location_from_preference(pref)
             if loc is not None:
-                self._current_plan = pref if pref != 'box' else 'Victim'
+                self._current_plan = pref if pref != 'goal' else 'Victim'
                 break
 
         # The location should not be empty
@@ -461,7 +476,6 @@ class PlanAgent:
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
                 prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1]].sum()
-                #prob = prob + belief[nbr[0], nbr[1], OBJECT_TO_IDX['box']-1] * colors[nbr[0], nbr[1], COLOR_TO_IDX['yellow']]
                 gc = node[1] + 1 + int(prob > 0.7)*1e50
                 # Get f
                 fc = gc + self.dist_func(nbr, dst)
@@ -558,10 +572,12 @@ class PreEmptiveAgent(PlanAgent):
                     self.plan = []
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
-                elif fwd_obj == 'box':
-                    if fwd_color != COLOR_TO_IDX['yellow']:
+                elif fwd_obj == 'goal':
+                    if fwd_color != COLOR_TO_IDX['green']:
                         self.plan = []
                         self.plan.append('toggle')
+                elif fwd_obj == 'box':
+                    self.plan.insert(0, 'toggle')
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -569,10 +585,12 @@ class PreEmptiveAgent(PlanAgent):
             fwd_cell = self.agent_pos + dirvec
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
-            if fwd_obj == 'box':
-                if fwd_color != COLOR_TO_IDX['yellow']:
+            if fwd_obj == 'goal':
+                if fwd_color != COLOR_TO_IDX['green']:
                     self.plan = []
                     self.plan.append('toggle')
+            elif fwd_obj == 'box':
+                self.plan.insert(0, 'toggle')
 
         if self._current_plan == 'explore':
             # If you're exploring and see something
@@ -621,9 +639,14 @@ class ScouringAgent(PlanAgent):
                             self.preferences.remove('explore')
                             self.preferences.append('explore')
 
+                elif fwd_obj == 'goal':
+                    if fwd_color != COLOR_TO_IDX['green']:
+                        self.plan = []
+                        self.plan.append('toggle')
+
                 elif fwd_obj == 'box':
-                    self.plan = []
-                    self.plan.append('toggle')
+                    self.plan.insert(0, 'toggle')
+
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
@@ -632,6 +655,8 @@ class ScouringAgent(PlanAgent):
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
+                self.plan.insert(0, 'toggle')
+            elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
 
@@ -649,24 +674,28 @@ class ScouringAgent(PlanAgent):
 #########################
 ## Main code
 #########################
-#env = gym.make('MiniGrid-HallwayWithVictims-v0')
-env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
+env = gym.make('MiniGrid-HallwayWithVictims-v0')
+#env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
-agent = PreEmptiveAgent(env)
-#agent = ScouringAgent(env)
+#agent = PreEmptiveAgent(env)
+agent = ScouringAgent(env)
+print(agent)
+
+# Init env and action
 obs = env.reset()
 info = {}
 agent.reset(env.get_map())
 act = agent.predict(obs, info)
+
 #agent.update(obs)
 #print(obs['pos'], obs['dir'])
 print(OBJECT_TO_IDX)
 
 ## Save trajectories here
-all_episode_actions = []
-current_episode_actions = []
+expert_data = []
+current_episode_actions = dict(obs=[], act=[], rew=[])
 episodes = 0
 num_steps = 0
 
@@ -674,26 +703,28 @@ while episodes < 1000:
     #act = int(input("Enter action "))
     #agent.update(obs)
     #act = agent.predict(obs)
+    fullmap = env.get_full_map()
+    current_episode_actions['obs'].append(fullmap)
+    current_episode_actions['act'].append(act)
     obs, rew, done, info = env.step(act)
+    current_episode_actions['rew'].append(rew)
     if info != {}:
         print(info)
-    #print(info)
     num_steps += 1
-    current_episode_actions.append(act)
     if done:
-        print("Episode {} done in {} steps".format(episodes + 1, num_steps))
+        print1("Episode {} done in {} steps".format(episodes + 1, num_steps))
         episodes += 1
         num_steps = 0
         obs = env.reset()
         agent.reset(env.get_map())
         # Add this episode data to all episodes
-        all_episode_actions.append(current_episode_actions)
-        current_episode_actions = []
+        expert_data.append(current_episode_actions)
+        current_episode_actions = dict(obs=[], act=[], rew=[])
 
     act = agent.predict(obs, info)
     #print(obs['pos'], obs['dir'])
 
-    if 1:
+    if not save:
         plt.clf()
         plt.subplot(121)
         img = env.render('rgb_array')
@@ -722,14 +753,13 @@ while episodes < 1000:
         plt.draw()
         plt.pause(.05)
 
-# Get filename
-print(agent)
-filename = input('Enter filename: ')
-filename += '.csv'
+if save:
+    # Get filename
+    print1(agent)
+    filename = input('Enter filename: ')
+    filename += '.pkl'
 
-with open(filename, 'wt') as fi:
-    lines = []
-    for act in all_episode_actions:
-        stract = ','.join(list(map(lambda x: str(x), act))) + "\n"
-        lines.append(stract)
-    fi.writelines(lines)
+    with open(filename, 'wb') as fi:
+        pkl.dump(expert_data, fi)
+        print1("Saved to {}".format(filename))
+

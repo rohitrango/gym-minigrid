@@ -5,29 +5,47 @@ import argparse
 import numpy as np
 import gym
 import gym_minigrid
+import pickle as pkl
 from gym_minigrid.wrappers import *
 from gym_minigrid.window import Window
 
+# Store all observations here
+all_observations = []
+episode_data = dict(obs=[], act=[], rew=[])
+G = 0
+
 def redraw(img):
     if not args.agent_view:
-        img = env.render('rgb_array', tile_size=args.tile_size)
+        img = env.render('rgb_array', tile_size=args.tile_size, hide_invisible=True)
 
     window.show_img(img)
 
 def reset():
+    global episode_data, all_observations, G
     if args.seed != -1:
         env.seed(args.seed)
 
     obs = env.reset()
+    # store the previous episode here
+    if len(episode_data['act']) > 0:
+        all_observations.append(episode_data)
+        episode_data = dict(obs=[], act=[], rew=[])
+        G += 1
 
     if hasattr(env, 'mission'):
         print('Mission: %s' % env.mission)
-        window.set_caption(env.mission)
-
+        window.set_caption('Games completed: {}'.format(G))
     redraw(obs)
 
 def step(action):
+    global episode_data, all_observations
+    fullmap = env.get_full_map()
+    print(fullmap.shape)
     obs, reward, done, info = env.step(action)
+    episode_data['obs'].append(fullmap)
+    episode_data['act'].append(action)
+    episode_data['rew'].append(reward)
+
     print('step=%s, reward=%.2f' % (env.step_count, reward))
 
     if done:
@@ -37,9 +55,16 @@ def step(action):
         redraw(obs)
 
 def key_handler(event):
+    global episode_data, all_observations
     print('pressed', event.key)
 
     if event.key == 'escape':
+        ## Save the trajectories here
+        filename = input('Enter the filename: ')
+        filename += '.pkl'
+        with open(filename, 'wb') as fi:
+            pkl.dump(all_observations, fi)
+
         window.close()
         return
 
@@ -97,17 +122,14 @@ parser.add_argument(
     action='store_true'
 )
 
+# The actual main function
 args = parser.parse_args()
 
 env = gym.make(args.env)
-# env = gym.wrappers.Monitor(env, "recording")
-try:
-    env = gym.wrappers.Monitor(env, "./vid", video_callable=lambda episode_id: True,force=True)
-except:
-    pass
 if args.agent_view:
     env = RGBImgPartialObsWrapper(env)
     env = ImgObsWrapper(env)
+env = AgentExtraInfoWrapper(env)
 
 window = Window('gym_minigrid - ' + args.env)
 window.reg_key_handler(key_handler)

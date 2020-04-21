@@ -302,7 +302,7 @@ class HallwayWithVictimsSARmap(HallwayWithVictims):
                     self.put_obj(Wall(), i, j)
                 elif entity_name == 'box':
                     color = 'red' if np.random.rand() < 0.5 else 'green'
-                    self.put_obj(Box(color, toggletimes=TOGGLETIMES[color], triage_color='yellow'), i, j)
+                    self.put_obj(Goal(color, toggletimes=TOGGLETIMES[color], triage_color='yellow'), i, j)
                     self.num_goals += 1
                 elif entity_name == 'door':
                     self.put_obj(Door(color='blue'), i, j)
