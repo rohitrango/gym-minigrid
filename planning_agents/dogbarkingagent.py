@@ -10,10 +10,18 @@ import gym_minigrid
 from scipy.ndimage import zoom
 from gym_minigrid import wrappers
 from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Scouring>=1')
+parser.add_argument('--fullobs', type=int, default=0)
+parser.add_argument('--num_episodes', type=int, default=1000)
+parser.add_argument('--save', type=int, default=1)
+args = parser.parse_args()
 
 #############
 # Set value of save here
-save = True
+save=args.save
 print1 = print
 if save:
     print = lambda *x: None
@@ -347,6 +355,9 @@ class PlanAgent:
             print("Updating plan")
             self.update_plan()
         try:
+            if self.plan[-1] != 'toggle':
+                if np.random.rand() < 0.4:
+                    return ACTION_TO_NUM_MAPPING['toggle']
             return ACTION_TO_NUM_MAPPING[self.plan.pop()]
         except:
             print("Returning done")
@@ -679,8 +690,8 @@ env = gym.make('MiniGrid-HallwayWithVictims-v0')
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
-#agent = PreEmptiveAgent(env)
-agent = ScouringAgent(env)
+agent = PreEmptiveAgent(env) if args.agenttype == 0 else ScouringAgent(env)
+#agent = ScouringAgent(env)
 print(agent)
 
 # Init env and action
@@ -699,11 +710,14 @@ current_episode_actions = dict(obs=[], act=[], rew=[])
 episodes = 0
 num_steps = 0
 
-while episodes < 1000:
+while episodes < args.num_episodes:
     #act = int(input("Enter action "))
     #agent.update(obs)
     #act = agent.predict(obs)
-    fullmap = env.get_full_map()
+    if args.fullobs:
+        fullmap = env.get_full_map()
+    else:
+        fullmap = obs
     current_episode_actions['obs'].append(fullmap)
     current_episode_actions['act'].append(act)
     obs, rew, done, info = env.step(act)
@@ -718,7 +732,8 @@ while episodes < 1000:
         obs = env.reset()
         agent.reset(env.get_map())
         # Add this episode data to all episodes
-        expert_data.append(current_episode_actions)
+        if len(current_episode_actions['act']) <= 1000:
+            expert_data.append(current_episode_actions)
         current_episode_actions = dict(obs=[], act=[], rew=[])
 
     act = agent.predict(obs, info)
