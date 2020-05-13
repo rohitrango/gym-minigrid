@@ -476,7 +476,7 @@ class Grid:
         agent_dir=None,
         highlight=False,
         tile_size=TILE_PIXELS,
-        subdivs=3
+        subdivs=3,
     ):
         """
         Render a tile and cache the result

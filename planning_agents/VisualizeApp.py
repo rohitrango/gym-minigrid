@@ -176,6 +176,8 @@ class VisualizerApp(QtWidgets.QWidget):
                     tileimg = M.Grid.render_tile(obj, agent_dir=sta).transpose(1, 0, 2)
                 else:
                     obj = M.WorldObj.decode(typ, col, sta)
+                    if M.OBJECT_TO_IDX['goal'] == typ:
+                        obj.color = M.IDX_TO_COLOR[col]
                     tileimg = M.Grid.render_tile(obj)
                 img[i*TILE:(i+1)*TILE, j*TILE:(j+1)*TILE, :] = tileimg
         #plt.imshow(img.astype(int).transpose(1, 0, 2))

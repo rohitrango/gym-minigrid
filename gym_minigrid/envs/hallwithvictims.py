@@ -6,6 +6,7 @@ from gym_minigrid.register import register
 TOGGLETIMES = {
         'red': 5,
         'yellow': 3,
+        'green': 3,
 }
 class Room:
     def __init__(self,
