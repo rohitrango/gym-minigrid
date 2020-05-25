@@ -1,5 +1,3 @@
-### Default Environments
-
 from gym_minigrid.envs.empty import *
 from gym_minigrid.envs.doorkey import *
 from gym_minigrid.envs.multiroom import *
@@ -21,20 +19,7 @@ from gym_minigrid.envs.crossing import *
 from gym_minigrid.envs.lavagap import *
 from gym_minigrid.envs.dynamicobstacles import *
 from gym_minigrid.envs.distshift import *
-
-
-### Search & Rescue Environments
-
 from gym_minigrid.envs.hallwithvictims import *
-from gym_minigrid.envs.hallwaywithvictimsandfire import *
-from gym_minigrid.envs.minimap import *
-from gym_minigrid.envs.numpymap import *
-from gym_minigrid.envs.numpyworld import *
 from gym_minigrid.envs.SARplayground import *
-
-
-### Other Environments
-
-from gym_minigrid.envs.multiobj import *
 from gym_minigrid.envs.simpleroom import *
-from gym_minigrid.envs.twogoals import *
+from gym_minigrid.envs.multiobj import *

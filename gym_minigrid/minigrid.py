@@ -15,6 +15,7 @@ COLORS = {
     'red'   : np.array([255, 0, 0]),
     'green' : np.array([0, 255, 0]),
     'blue'  : np.array([0, 0, 255]),
+    'white' : np.array([255, 255, 255]),
     'purple': np.array([112, 39, 195]),
     'yellow': np.array([255, 255, 0]),
     'grey'  : np.array([100, 100, 100])
@@ -29,7 +30,8 @@ COLOR_TO_IDX = {
     'blue'  : 2,
     'purple': 3,
     'yellow': 4,
-    'grey'  : 5
+    'grey'  : 5,
+    'white' : 6,
 }
 
 IDX_TO_COLOR = dict(zip(COLOR_TO_IDX.values(), COLOR_TO_IDX.keys()))

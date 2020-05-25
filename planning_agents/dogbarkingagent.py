@@ -69,7 +69,8 @@ class PlanAgent:
         self.objstates = np.ones((self.width + 2*self.agent_view_size, self.height + 2*self.agent_view_size, self.numstates)) / self.numstates
 
         self.plan = []
-        self.preferences = ['goal', 'box', 'door', 'explore']
+        #self.preferences = ['goal', 'door', 'explore']
+        self.preferences = ['goal', 'explore']
         self.agent_pos = None
         self.agent_dir = None
         self._subgoal = None
@@ -94,6 +95,9 @@ class PlanAgent:
             x += self.agent_view_size
             self.belief[y, x] = 0
             self.belief[y, x, OBJECT_TO_IDX[obj]-1] = 1
+            if obj == 'door':
+                self.objstates[y, x, ] = 0
+                self.objstates[y, x, STATE_TO_IDX['closed'] ] = 1
 
         self.plan = []
         self.agent_pos = None
@@ -151,7 +155,18 @@ class PlanAgent:
         belief = self.belief[A:-A, A:-A]
         ent = -belief * np.log(1e-100 + belief)
         ent = ent.sum(2)
-        ent = -zoom(ent, 4)
+        #print(self._subgoal, self._current_plan)
+        x, y = self.agent_pos
+        h = np.arange(belief.shape[0])
+        hh, ww = np.meshgrid(h, h)
+        dist = np.sqrt((hh - x)**2 + (ww - y)**2) / belief.shape[0]
+        dist = dist.T
+
+        # get location of subgoal
+        x, y = self._subgoal
+        ent[x, y] = -3
+        # zoom
+        ent = -zoom(ent/(1 + dist), 4, order=1)
         return ent
 
     def rotate_right(self, grid):
@@ -210,7 +225,7 @@ class PlanAgent:
         agdir = obs['dir']
 
         # Save the values for planning ahead
-        self.agent_pos = pos
+        self.agent_pos = np.array(pos)
         self.agent_dir = agdir
         A = self.agent_view_size
 
@@ -302,8 +317,21 @@ class PlanAgent:
 
 
     def check_safe_plan(self):
+
         # TODO: Check if the next step is safe, if not then delete the existing plan
         if len(self.plan) > 0:
+            # If exploration is done, then move on
+            if self._current_plan == 'explore':
+                A = self.agent_view_size
+                x, y = self._subgoal
+                x += A
+                y += A
+                bel = self.belief[x, y]
+                bel = np.sum(bel*(1 - bel))
+                if bel < 1e-5:
+                    self.plan = []
+                    return
+
             if self.plan[-1] == 'forward':
                 dirvec = NUM_TO_DIR[self.agent_dir]
                 fwd_cell = self.agent_pos + dirvec
@@ -312,11 +340,12 @@ class PlanAgent:
                 if fwd_obj in ['wall', 'lava']:
                     self.plan = []
                 elif fwd_obj == 'door':
-                    self.plan = []
                     if fwd_state == STATE_TO_IDX['closed']:
+                        #self.plan.insert(0, 'toggle')
                         self.plan.append('toggle')
                 elif fwd_obj == 'box' :
-                    self.plan.insert(0, 'toggle')
+                    #self.plan.insert(0, 'toggle')
+                    self.plan.append('toggle')
                 elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                     self.plan = []
                     self.plan.append('toggle')
@@ -328,8 +357,8 @@ class PlanAgent:
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box' :
-                self.plan = []
-                self.plan.insert(0, 'toggle')
+                #self.plan.insert(0, 'toggle')
+                self.plan.append('toggle')
             elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
@@ -355,9 +384,9 @@ class PlanAgent:
             print("Updating plan")
             self.update_plan()
         try:
-            if self.plan[-1] != 'toggle':
-                if np.random.rand() < 0.4:
-                    return ACTION_TO_NUM_MAPPING['toggle']
+            #if self.plan[-1] != 'toggle':
+                #if np.random.rand() < 0.4:
+                    #return ACTION_TO_NUM_MAPPING['toggle']
             return ACTION_TO_NUM_MAPPING[self.plan.pop()]
         except:
             print("Returning done")
@@ -372,7 +401,7 @@ class PlanAgent:
             probgoal = self.belief[A:-A, A:-A, goalcode]
             # Dont get gray victims
             if pref == 'goal':
-                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['green']])
+                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['white']])
 
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
@@ -385,6 +414,7 @@ class PlanAgent:
                 if len(x) == 0:
                     return None
             # Get the one with min index
+            print('Choosing from {} doors'.format(len(x)))
             minidx = np.argmin(np.abs(x - self.agent_pos[0]) + np.abs(y - self.agent_pos[1]))
             return [x[minidx], y[minidx]]
 
@@ -396,14 +426,15 @@ class PlanAgent:
             # Have a map based on spatial distance
             xx, yy = np.arange(H), np.arange(W)
             xx, yy = np.meshgrid(xx, yy)
-            dist = np.sqrt((xx - self.agent_pos[0])**2 + (yy - self.agent_pos[1])**2)
+            dist = np.sqrt((xx - self.agent_pos[0])**2 + (yy - self.agent_pos[1])**2).T
             dist /= H
             entropydist = entropy / (1 + dist)
             # Sample from it
             N = entropy.reshape(-1).shape[0]
             try:
                 p = entropydist/entropydist.sum()
-                goal = np.random.choice(np.arange(N), p=p.reshape(-1))
+                #goal = np.random.choice(np.arange(N), p=p.reshape(-1))
+                goal = np.argmax(entropydist)
                 x, y = goal//H, goal%H
                 return [x, y]
             except:
@@ -486,7 +517,7 @@ class PlanAgent:
                 #plt.draw()
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
-                prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1]].sum()
+                prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1, OBJECT_TO_IDX['key']-1]].sum()
                 gc = node[1] + 1 + int(prob > 0.7)*1e50
                 # Get f
                 fc = gc + self.dist_func(nbr, dst)
@@ -503,7 +534,6 @@ class PlanAgent:
                 assert last == src
                 break
             seq.append(parent)
-
 
         # Convert this sequence of locations into sequence of actions
         seq = seq[::-1]
@@ -565,13 +595,25 @@ class PreEmptiveAgent(PlanAgent):
     def check_safe_plan(self):
         # TODO: Check if the next step is safe, if not then delete the existing plan
         dirvec = NUM_TO_DIR[self.agent_dir]
-        fwd_cell = self.agent_pos + dirvec
+        fwd_cell = np.array(self.agent_pos) + dirvec
         # Get object, color, state
         fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
         if fwd_obj != 'empty':
             print(fwd_obj, fwd_color)
 
         if len(self.plan) > 0:
+            if self._current_plan == 'explore':
+                A = self.agent_view_size
+                x, y = self._subgoal
+                x += A
+                y += A
+                bel = self.belief[x, y]
+                bel = np.sum(bel*(1 - bel))
+                if bel < 1e-5:
+                    print("Wrong belief?")
+                    self.plan = []
+                    return
+
             if self.plan[-1] == 'forward':
                 dirvec = NUM_TO_DIR[self.agent_dir]
                 fwd_cell = self.agent_pos + dirvec
@@ -580,37 +622,39 @@ class PreEmptiveAgent(PlanAgent):
                 if fwd_obj in ['wall', 'lava']:
                     self.plan = []
                 elif fwd_obj == 'door':
-                    self.plan = []
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
                 elif fwd_obj == 'goal':
-                    if fwd_color != COLOR_TO_IDX['green']:
+                    if fwd_color != COLOR_TO_IDX['white']:
                         self.plan = []
                         self.plan.append('toggle')
                 elif fwd_obj == 'box':
-                    self.plan.insert(0, 'toggle')
+                    #self.plan.insert(0, 'toggle')
+                    self.plan.append('toggle')
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
             dirvec = NUM_TO_DIR[self.agent_dir]
-            fwd_cell = self.agent_pos + dirvec
+            fwd_cell = np.array(self.agent_pos) + dirvec
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'goal':
-                if fwd_color != COLOR_TO_IDX['green']:
+                if fwd_color != COLOR_TO_IDX['white']:
                     self.plan = []
                     self.plan.append('toggle')
             elif fwd_obj == 'box':
-                self.plan.insert(0, 'toggle')
+                #self.plan.insert(0, 'toggle')
+                self.plan.append('toggle')
 
         if self._current_plan == 'explore':
             # If you're exploring and see something
             A = self.agent_view_size
-            maxprob = self.get_prob_map(['box', 'goal'], zoom_factor=1)
+            maxprob = self.get_prob_map(['goal'], zoom_factor=1, color='yellow') + self.get_prob_map(['goal'], zoom_factor=1, color='green')
             maxprob = np.max(maxprob)
             # Check for unopened doors
-            doorprob = self.get_prob_map(['door'], zoom_factor=1)
-            doorprob *= (self.objstates[A:-A, A:-A, STATE_TO_IDX['closed']])
+            #doorprob = self.get_prob_map(['door'], zoom_factor=1)
+            #doorprob *= (self.objstates[A:-A, A:-A, STATE_TO_IDX['closed']])
+            doorprob = [0]
             if maxprob >= 0.7:
                 #print("Preemptively ditching plan for goal")
                 self.plan = []
@@ -628,20 +672,30 @@ class ScouringAgent(PlanAgent):
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.preferences = ['door', 'explore', 'goal', 'box']
+        self.preferences = ['explore', 'goal','door']
         self.opendoors = 0
 
     def check_safe_plan(self):
         if len(self.plan) > 0:
+            if self._current_plan == 'explore':
+                A = self.agent_view_size
+                x, y = self._subgoal
+                x += A
+                y += A
+                bel = self.belief[x, y]
+                bel = np.sum(bel*(1 - bel))
+                if bel < 1e-5:
+                    self.plan = []
+                    return
+
             if self.plan[-1] == 'forward':
                 dirvec = NUM_TO_DIR[self.agent_dir]
-                fwd_cell = self.agent_pos + dirvec
+                fwd_cell = np.array(self.agent_pos) + dirvec
                 # Get object, color, state
                 fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
                 if fwd_obj in ['wall', 'lava']:
                     self.plan = []
                 elif fwd_obj == 'door':
-                    self.plan = []
                     if fwd_state == STATE_TO_IDX['closed']:
                         self.plan.append('toggle')
                         self.opendoors += 1
@@ -651,22 +705,24 @@ class ScouringAgent(PlanAgent):
                             self.preferences.append('explore')
 
                 elif fwd_obj == 'goal':
-                    if fwd_color != COLOR_TO_IDX['green']:
+                    if fwd_color != COLOR_TO_IDX['white']:
                         self.plan = []
                         self.plan.append('toggle')
 
                 elif fwd_obj == 'box':
-                    self.plan.insert(0, 'toggle')
+                    #self.plan.insert(0, 'toggle')
+                    self.plan.append('toggle')
 
 
         elif len(self.plan) == 0:
             # Toggle door as long as it takes
             dirvec = NUM_TO_DIR[self.agent_dir]
-            fwd_cell = self.agent_pos + dirvec
+            fwd_cell = np.array(self.agent_pos) + dirvec
             # Get object, color, state
             fwd_obj, fwd_color, fwd_state = self.query_cell(fwd_cell)
             if fwd_obj == 'box':
-                self.plan.insert(0, 'toggle')
+                #self.plan.insert(0, 'toggle')
+                self.plan.append('toggle')
             elif fwd_obj == 'goal' and fwd_color in VICTIMCOLORS:
                 self.plan = []
                 self.plan.append('toggle')
@@ -677,7 +733,8 @@ class ScouringAgent(PlanAgent):
             # Check for unopened doors
             doorprob = self.get_prob_map(['door'], zoom_factor=1)
             doorprob *= (self.objstates[A:-A, A:-A, STATE_TO_IDX['closed']])
-            if np.max(doorprob) >= 0.7:
+            # TODO: Reduce probability to less than 1 to have this behavior
+            if np.max(doorprob) >= 1.7:
                 #print("Preemptively ditching plan for door")
                 self.plan = []
 
@@ -685,8 +742,11 @@ class ScouringAgent(PlanAgent):
 #########################
 ## Main code
 #########################
-env = gym.make('MiniGrid-HallwayWithVictims-v0')
+#env = gym.make('MiniGrid-HallwayWithVictims-v0')
 #env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
+env = gym.make("MiniGrid-NumpyMapMinecraftUSARRandomVictims-v0")
+env.agent_view_size = 9
+env.dog = False
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PlanAgent(env)
@@ -747,8 +807,9 @@ while episodes < args.num_episodes:
         plt.title('Ground truth')
 
         plt.subplot(122)
-        plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
-        #plt.imshow(agent.get_prob_map(['box']).T, 'jet')
+        #plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        #plt.imshow(agent.get_prob_map(['door']).T, 'jet')
+        plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Agent\'s belief')
         plt.suptitle(agent.get_dogml_info())
 
