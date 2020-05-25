@@ -1,0 +1,3 @@
+[submodule "gym_minigrid"]
+	path = gym_minigrid
+	url = https://gitlab.com/cmu_asist/gym_minigrid
