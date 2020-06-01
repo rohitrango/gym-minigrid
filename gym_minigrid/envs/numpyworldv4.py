@@ -8,88 +8,30 @@ from gym_minigrid import preprocessing
 
 RESOURCES_DIR = (Path(__file__).parent / './resources').resolve()
 
+class NumpyMapMinecraftUSARv4(MiniGridEnv):
 
-class NumpyMapFourRooms(MiniGridEnv):
-    """
-    Environment with multiple rooms and random objects.
-    This environment has no specific goals or rewards.
-    """
-
-    def __init__(self, numpyFile=Path(RESOURCES_DIR, 'map000.npy')):
-        self.numpyFile = numpyFile
-        self.index_mapping = {
-             0 : 'unseen'        ,
-             1 : 'empty'         ,
-             2 : 'wall'          ,
-             3 : 'floor'         ,
-             4 : 'door'          ,
-             5 : 'key'           ,
-             6 : 'ball'          ,
-             7 : 'box'           ,
-             8 : 'goal'          ,
-             9 : 'lava'          ,
-             10: 'agent'
-        }
-        super().__init__(grid_size=41, max_steps=1000, agent_view_size=3)
-
-
-    def _gen_grid(self, width, height):
-
-        # Create an empty grid
-        self.grid = Grid(width, height)
-
-        # Generate the surrounding walls
-        self.grid.wall_rect(0, 0, width, height)
-
-        # Create the grid
-        self.array = np.load(self.numpyFile)
-
-        for i in range(1, self.array.shape[0]):
-            for j in range(1, self.array.shape[1]):
-                entity_name = index_mapping[self.array[i][j]]
-                entity_index = int(self.array[i][j])
-
-                if entity_index != 10 and entity_index != 0:  #'agent':
-                    for entity_class in WorldObj.__subclasses__():
-                        # the class name needs to be lowercase (not sentence case)
-                        if entity_name == entity_class.__name__.casefold():
-                            #     print('entity_index')
-
-                            self.put_obj(entity_class(), j, i)
-
-                elif entity_index == 0:
-                    self.put_obj(Wall(), j, i)
-        self.place_agent()
-        self.place_obj(Goal())
-        self.mission = 'Reach the goal'
-
-
-    def step(self, action):
-        obs, reward, done, info = MiniGridEnv.step(self, action)
-        return obs, reward, done, info
-
-
-class NumpyMapMinecraftUSAR(MiniGridEnv):
-
-    def __init__(self, numpyFile=Path(RESOURCES_DIR, 'tmp_grid.npy'), agent_start_pos=[24, 25], agent_start_dir=2):
+    def __init__(self, numpyFile=Path(RESOURCES_DIR, 'mapv4.npy'), agent_start_pos=[24, 25], agent_start_dir=2):
         self.numpyFile = numpyFile
         self.roomFile = Path(RESOURCES_DIR, 'tmp_grid_roominfo.npy')
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
         self.index_mapping = {
-            9: 'empty',
-            8: 'agent',
-            1: 'agent',
-            2: 'door',
-            4: 'wall',
-            5: 'lava',
-            6: 'key',
-            7: 'goal',
-            3: 'goal',
-            0: 'unseen',
-            10: 'box',
-            255: 'box',
-        }
+                1: 'empty',
+                2: 'door',
+                #5: 'box',
+                9: 'lava',
+                10: 'agent',
+                4: 'wall',
+                30: 'wall',
+                80: 'goal',
+                81: 'goal',
+                82: 'goal',
+                83: 'goal',
+                #255: 'box',
+                5: 'empty',
+                255: 'empty',
+                -1: 'unseen',
+            }
         self.color_mapping = {
             9: '',
             8: '',
@@ -103,6 +45,11 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             0: '',
             10: 'yellow',
             255: 'red',
+            80: 'red',
+            81: 'yellow',
+            82: 'green',
+            83: 'white',
+            30: 'green',
         }
         self.toggletimes_mapping = {
             9: 0,
@@ -116,14 +63,21 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             3: 5,
             0: 0,
             10: 3,
+            30: 0,
+            80: 0,
+            81: 1,
+            82: 1,
+            83: 0,
             255: 2,
         }
-        super().__init__(grid_size=50, max_steps=1000, agent_view_size=3)
+        array = np.load(self.numpyFile)
+        h, w = array.shape
+        super().__init__(width=w, height=h, max_steps=1000, agent_view_size=3)
 
 
     def _get_filtered_map(self, grid):
         nmap = 0
-        assert grid in self.index_mapping.values()
+        assert grid in self.index_mapping.values(), print(grid, self.index_mapping.values())
         for i, x in self.index_mapping.items():
             if x == grid:
                 nmap = nmap + (self.array == i).astype(int)
@@ -144,7 +98,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
         # Put entities in the grid
         for mc_i in range(0, self.array.shape[0]):
-            for mc_j in range(0, self.array.shape[1] ):
+            for mc_j in range(0, self.array.shape[1]):
                 mg_i , mg_j = mc_i , mc_j
                 entity_index = int(self.array[mc_i][mc_j])
 
@@ -152,8 +106,10 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                 entity_color = self.color_mapping[entity_index]
                 entity_toggletime = self.toggletimes_mapping[entity_index]
 
-                if entity_name in ['agent', 'empty']:
+                if entity_name in ['empty']:
                     continue
+                elif entity_name == 'agent':
+                    self.agent_state_pos = (mc_j, mc_i)
                 elif entity_name == 'unseen':
                     self.put_obj(Wall(), mg_j, mg_i)
                 else:
@@ -169,6 +125,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
 
+        self.grid.wall_rect(0, 0, width, height)
         # Set agent position and directions
         self.agent_pos = self.agent_start_pos
         self.grid.set(*self.agent_start_pos, None)
@@ -177,7 +134,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         self.mission = 'Triage the victims'
 
         # Load room information for easy querying later on
-        self.roomViews = self._get_door_to_room_mapping(np.load(self.roomFile))
+        #self.roomViews = self._get_door_to_room_mapping(np.load(self.roomFile))
+        self.roomViews  = dict()
 
 
     def _get_door_to_room_mapping(self, roomboxes):
@@ -287,7 +245,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
 
 
-class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
+class NumpyMapMinecraftUSARRandomVictimsv4(NumpyMapMinecraftUSARv4):
     def __init__(self, num_victims_red=10, num_victims_green=20):
         self.num_victims_red = num_victims_red
         self.num_victims_green = num_victims_green
@@ -338,19 +296,14 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
         self.agent_dir = self.agent_start_dir
         # self.place_obj(Goal())
         self.mission = 'Triage the yellow and green victims.'
-        self.roomViews = self._get_door_to_room_mapping(np.load(self.roomFile))
+
 
 register(
-    id='MiniGrid-NumpyMapFourRooms-v0',
-    entry_point='gym_minigrid.envs:NumpyMapFourRooms'
+    id='MiniGrid-NumpyMapMinecraftUSAR-v4',
+    entry_point='gym_minigrid.envs:NumpyMapMinecraftUSARv4'
 )
 
 register(
-    id='MiniGrid-NumpyMapMinecraftUSAR-v0',
-    entry_point='gym_minigrid.envs:NumpyMapMinecraftUSAR'
-)
-
-register(
-    id='MiniGrid-NumpyMapMinecraftUSARRandomVictims-v0',
-    entry_point='gym_minigrid.envs:NumpyMapMinecraftUSARRandomVictims'
+    id='MiniGrid-NumpyMapMinecraftUSARRandomVictims-v4',
+    entry_point='gym_minigrid.envs:NumpyMapMinecraftUSARRandomVictimsv4'
 )

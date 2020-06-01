@@ -30,6 +30,7 @@ from gym_minigrid.envs.hallwaywithvictimsandfire import *
 from gym_minigrid.envs.minimap import *
 from gym_minigrid.envs.numpymap import *
 from gym_minigrid.envs.numpyworld import *
+from gym_minigrid.envs.numpyworldv4 import *
 from gym_minigrid.envs.SARplayground import *
 
 
