@@ -302,6 +302,9 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
 
+        self.wallmap = self._get_filtered_map('wall') + self._get_filtered_map('unseen')
+        self.doormap = self._get_filtered_map('door')
+
         for mc_i in range(0, self.array.shape[0]):
             for mc_j in range(0, self.array.shape[1] ):
                 mg_i , mg_j = mc_i , mc_j
@@ -338,6 +341,8 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
         self.agent_dir = self.agent_start_dir
         # self.place_obj(Goal())
         self.mission = 'Triage the yellow and green victims.'
+        # Load room information for easy querying later on
+        self.roomViews = self._get_door_to_room_mapping(np.load(self.roomFile))
 
 register(
     id='MiniGrid-NumpyMapFourRooms-v0',
