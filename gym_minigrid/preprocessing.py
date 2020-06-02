@@ -10,6 +10,7 @@ def preprocess_connected_components(nmap, index_mapping):
     '''
     conn = nmap * 0 + 1  # Check for connectivity map (make all walls 0)
     wallidx = None
+    print(index_mapping)
     for k, v in index_mapping.items():
         print(v)
         if v == 'wall':
@@ -20,12 +21,12 @@ def preprocess_connected_components(nmap, index_mapping):
             wallmap = 1 - (nmap == k).astype(int)
             conn = conn * wallmap
 
+    # get labels
+    labels = measure.label(conn, background=0, connectivity=1)
     #plt.figure()
-    #plt.imshow(conn.T)
+    #plt.imshow(labels.T)
     #plt.show()
 
-    # get labels
-    labels = measure.label(conn, background=0)
     M = np.max(labels) + 1
     arr = []
     for i in range(1, M):

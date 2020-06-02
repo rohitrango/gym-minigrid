@@ -49,7 +49,7 @@ class NumpyMapMinecraftUSARv4(MiniGridEnv):
             81: 'yellow',
             82: 'green',
             83: 'white',
-            30: 'green',
+            30: '',
         }
         self.toggletimes_mapping = {
             9: 0,
