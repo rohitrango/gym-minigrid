@@ -164,9 +164,9 @@ class PlanAgent:
 
         # get location of subgoal
         x, y = self._subgoal
-        ent[x, y] = -3
+        #ent[x, y] = np.max(ent)
         # zoom
-        ent = -zoom(ent/(1 + dist), 4, order=1)
+        ent = zoom(ent/(1 + dist), 4, order=1)
         return ent
 
     def rotate_right(self, grid):
@@ -283,7 +283,7 @@ class PlanAgent:
 
         topX, topY, botX, botY = self.get_bounds(pos, agdir)
         h, w = img.shape[:2]
-        img[w//2, h-1, 0] = 0
+        #img[w//2, h-1, 0] = 0
         #print(topX, topY, botX, botY)
         #print(self.agent_view_size)
         for i in range(agdir + 1):
@@ -744,7 +744,8 @@ class ScouringAgent(PlanAgent):
 #########################
 #env = gym.make('MiniGrid-HallwayWithVictims-v0')
 #env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
-env = gym.make("MiniGrid-NumpyMapMinecraftUSARRandomVictims-v0")
+#env = gym.make("MiniGrid-NumpyMapMinecraftUSARRandomVictims-v0")
+env = gym.make("MiniGrid-NumpyMapMinecraftUSAR-v0")
 env.agent_view_size = 9
 env.dog = False
 env = wrappers.AgentExtraInfoWrapper(env)
@@ -807,9 +808,9 @@ while episodes < args.num_episodes:
         plt.title('Ground truth')
 
         plt.subplot(122)
-        plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        #plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
         #plt.imshow(agent.get_prob_map(['door']).T, 'jet')
-        #plt.imshow(agent.get_entropy().T, 'jet')
+        plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Agent\'s belief')
         plt.suptitle(agent.get_dogml_info())
 

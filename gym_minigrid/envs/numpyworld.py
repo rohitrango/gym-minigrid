@@ -272,6 +272,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                         bark = 1
 
         obs['bark'] = bark
+        print(bark)
 
         if action == self.actions.forward or True:
             cur_cell = self.grid.get(*self.agent_pos)
