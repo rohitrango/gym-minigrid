@@ -72,7 +72,7 @@ class NumpyMapMinecraftUSARv4(MiniGridEnv):
         }
         array = np.load(self.numpyFile)
         h, w = array.shape
-        super().__init__(width=w, height=h, max_steps=1000, agent_view_size=3)
+        super().__init__(width=w, height=h, max_steps=1000, agent_view_size=7)
 
 
     def _get_filtered_map(self, grid):
@@ -91,6 +91,9 @@ class NumpyMapMinecraftUSARv4(MiniGridEnv):
         # Create the grid
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
+        # mask with wall where no access
+        self.array[:, :12] = 4
+        self.array[:36, :24] = 4
 
         # Save a wallgrid and doorgrid
         self.wallmap = self._get_filtered_map('wall') + self._get_filtered_map('unseen')
