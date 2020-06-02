@@ -58,7 +58,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             10: 3,
             255: 2,
         }
-        super().__init__(grid_size=50, max_steps=1000, agent_view_size=3)
+        super().__init__(grid_size=50, max_steps=1000, agent_view_size=7)
 
 
     def _get_filtered_map(self, grid):
@@ -249,6 +249,7 @@ class USARLevel1(NumpyMapMinecraftUSAR):
     def _gen_grid(self, width, height):
         # Keep victim count
         self.victimcount = 0
+        self.agent_view_size = 7
         # Load the array
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
@@ -260,6 +261,7 @@ class USARLevel1(NumpyMapMinecraftUSAR):
         width, height = 2+max(w,h), 2+max(w,h)
         self.width = width
         self.height = height
+        print(self.agent_view_size)
 
         # Set subarray
         subarray = np.zeros((height, width)) + 4
