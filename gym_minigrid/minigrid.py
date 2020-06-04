@@ -154,20 +154,22 @@ class WorldObj:
         raise NotImplementedError
 
 class Goal(WorldObj):
-    def __init__(self, color='green', toggletimes=0, triage_color=None):
+    def __init__(self, color='green', toggletimes=1, triage_color=None):
         self.toggletimes = toggletimes
+        self.prevcolor = color
         self.overlap = toggletimes <= 0 # if toggletimes is lt 0, overlap then
         self.triage_color = triage_color
         super().__init__('goal', color)
 
     def can_overlap(self):
-        return self.overlap or self.triage_color == self.color
+        #return self.overlap or self.triage_color == self.color
+        return True
 
     def render(self, img):
         fill_coords(img, point_in_rect(0, 1, 0, 1), COLORS[self.color])
 
     def toggle(self, env, pos):
-        if not self.overlap:
+        if self.toggletimes > 0:
             # Replace the box by its contents
             self.toggletimes -= 1
             if self.toggletimes <= 0 and self.triage_color is None:
@@ -175,10 +177,8 @@ class Goal(WorldObj):
                 return True
             elif self.toggletimes <= 0 and self.triage_color is not None:
                 self.color = self.triage_color
-                return False
-            return False
-        else:
-            return False
+                return True
+        return False
 
 
 class Floor(WorldObj):
@@ -1218,7 +1218,7 @@ class MiniGridEnv(gym.Env):
         # Toggle/activate an object
         elif action == self.actions.toggle:
             if fwd_cell:
-                fwd_cell.toggle(self, fwd_pos)
+                self.toggle_success = fwd_cell.toggle(self, fwd_pos)
 
         # Done action (not used by default)
         elif action == self.actions.done:

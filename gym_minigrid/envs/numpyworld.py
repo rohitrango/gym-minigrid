@@ -45,18 +45,10 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             255: 'red',
         }
         self.toggletimes_mapping = {
-            9: 0,
-            8: 0,
-            1: 0,
-            2: 1,
-            4: 0,
-            5: 0,
-            6: 1,
-            7: 5,
-            3: 5,
-            0: 0,
-            10: 3,
-            255: 2,
+                'yellow': 10,
+                'green': 3,
+                'white': 0,
+                'red':0,
         }
         self.victimlifetime = None
         super().__init__(grid_size=50, max_steps=1000, agent_view_size=7)
@@ -109,7 +101,6 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
                 entity_name = self.index_mapping[entity_index]
                 entity_color = self.color_mapping[entity_index]
-                entity_toggletime = self.toggletimes_mapping[entity_index]
 
                 if entity_name in ['agent', 'empty']:
                     continue
@@ -127,17 +118,20 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                                     elif entity_color == 'green':
                                         self.numgreen += 1
                                     self.victimcount += 1
-                                self.put_obj(entity_class(color=entity_color), mg_j, mg_i)
+
+                                if entity_class == Goal:
+                                    self.put_obj(entity_class(color=entity_color, toggletimes=self.toggletimes_mapping[entity_color], triage_color='white'), mg_j, mg_i)
+                                else:
+                                    self.put_obj(entity_class(color=entity_color), mg_j, mg_i)
                             else:
                                 if entity_class == Goal:
-                                    self.victimcount += 1
                                     vcolor = np.random.choice(['yellow', 'green'])
                                     if vcolor == 'yellow':
                                         self.numyellow += 1
                                     elif vcolor == 'green':
                                         self.numgreen += 1
                                     self.victimcount += 1
-                                    self.put_obj(entity_class(color=vcolor), mg_j, mg_i)
+                                    self.put_obj(entity_class(color=vcolor, toggletimes=self.toggletimes_mapping[vcolor], triage_color='white'), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
 
@@ -248,7 +242,21 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
         obs['bark'] = bark
 
-        if action == self.actions.forward or True:
+        done = False
+        # Check for triaged victims
+        if action == self.actions.toggle:
+            fwd_cell = self.grid.get(*self.front_pos)
+            if fwd_cell is not None and fwd_cell.type == 'goal':
+                if self.toggle_success:
+                    reward = self.colorbasedreward(fwd_cell.prevcolor)
+                    self.array[self.front_pos[1], self.front_pos[0]] = 9
+                    self.victimcount -= 1
+                    print("{} victims remaining".format(self.victimcount))
+                    if self.victimcount == 0:
+                        done = True
+
+        '''
+        if action == self.actions.forward and False:
             cur_cell = self.grid.get(*self.agent_pos)
             fwd_cell = self.grid.get(*self.front_pos)
             if fwd_cell != None and fwd_cell.type == 'goal':
@@ -263,6 +271,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
             elif cur_cell != None and cur_cell.type == 'goal':
                 done = False
+        '''
         return obs, reward, done, info
 
 
@@ -318,7 +327,6 @@ class USARLevel1(NumpyMapMinecraftUSAR):
 
                 entity_name = self.index_mapping[entity_index]
                 entity_color = self.color_mapping[entity_index]
-                entity_toggletime = self.toggletimes_mapping[entity_index]
 
                 if entity_name in ['agent', 'empty']:
                     emptypos.append([mg_j, mg_i])
@@ -340,7 +348,7 @@ class USARLevel1(NumpyMapMinecraftUSAR):
                                         self.numyellow += 1
                                     else:
                                         self.numgreen += 1
-                                    self.put_obj(entity_class(color=vcolor), mg_j, mg_i)
+                                    self.put_obj(entity_class(color=vcolor, toggletimes=self.toggletimes_mapping[vcolor], triage_color='white'), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
 
@@ -376,7 +384,8 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
 
         # More variables
         self.time = 0
-        self.numyellow = self.numgreen = 0
+        self.numyellow = 0
+        self.numgreen = 0
 
         # Create the grid
         self.array = np.load(self.numpyFile)
@@ -392,7 +401,6 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
 
                 entity_name = self.index_mapping[entity_index]
                 entity_color = self.color_mapping[entity_index]
-                entity_toggletime = self.toggletimes_mapping[entity_index]
 
                 if entity_name in ['agent', 'empty']:
                     continue
@@ -413,12 +421,12 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
                                 self.put_obj(entity_class(), mg_j, mg_i)
 
         for _ in range(self.num_victims_red):
-            pos = self.place_obj(Goal('yellow'))
+            pos = self.place_obj(Goal('yellow', toggletimes=self.toggletimes_mapping['yellow'], triage_color='white'))
             self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
             self.numyellow += 1
         for _ in range(self.num_victims_green):
-            pos = self.place_obj(Goal('green'))
+            pos = self.place_obj(Goal('green', toggletimes=self.toggletimes_mapping['green'], triage_color='white'))
             self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
             self.numgreen += 1
