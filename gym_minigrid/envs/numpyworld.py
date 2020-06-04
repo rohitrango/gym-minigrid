@@ -238,8 +238,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             for x, y in zip(x1, y1):
                 cell = self.grid.get(x, y)
                 if cell is None or cell.type != 'goal':
-                    print("SOMETHING IS WRONG, found this at {}, {}".format(x, y), cell)
-                    raise NotImplementedError
+                    continue
                 else:
                     color = cell.color
                     if color == 'yellow':
@@ -281,6 +280,10 @@ class USARLevel1(NumpyMapMinecraftUSAR):
         # Keep victim count
         self.victimcount = 0
         self.agent_view_size = 7
+        # Additional variables
+        self.time = 0
+        self.numyellow = 0
+        self.numgreen = 0
         # Load the array
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
@@ -332,7 +335,12 @@ class USARLevel1(NumpyMapMinecraftUSAR):
                             else:
                                 if entity_class == Goal:
                                     self.victimcount += 1
-                                    self.put_obj(entity_class(color=np.random.choice(['yellow', 'green'])), mg_j, mg_i)
+                                    vcolor = np.random.choice(['yellow', 'green'])
+                                    if vcolor == 'yellow':
+                                        self.numyellow += 1
+                                    else:
+                                        self.numgreen += 1
+                                    self.put_obj(entity_class(color=vcolor), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
 
@@ -366,6 +374,10 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
         self.victimcount = 0
         self.grid = Grid(width, height)
 
+        # More variables
+        self.time = 0
+        self.numyellow = self.numgreen = 0
+
         # Create the grid
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
@@ -393,6 +405,7 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
                             # print(entity_index, entity_name, entity_color, entity_toggletime)
                             if entity_name == 'goal':
                                 # Skip goal i.e. victim placement
+                                self.array[mc_i, mc_j] = 9
                                 continue
                             elif entity_color != '':
                                 self.put_obj(entity_class(color=entity_color), mg_j, mg_i)
@@ -400,11 +413,15 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
                                 self.put_obj(entity_class(), mg_j, mg_i)
 
         for _ in range(self.num_victims_red):
-            self.place_obj(Goal('yellow'))
+            pos = self.place_obj(Goal('yellow'))
+            self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
+            self.numyellow += 1
         for _ in range(self.num_victims_green):
-            self.place_obj(Goal('green'))
+            pos = self.place_obj(Goal('green'))
+            self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
+            self.numgreen += 1
 
         self.agent_pos = self.agent_start_pos
         self.grid.set(*self.agent_start_pos, None)

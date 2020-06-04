@@ -1,15 +1,38 @@
+'''
+Base agents that observe partial environments and take actions based on preferences
+'''
+import numpy as np
+from matplotlib import pyplot as plt
+import pickle as pkl
+import gym
+from heapq import *
+import gym_minigrid
+from scipy.ndimage import zoom
+from gym_minigrid import wrappers
+from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+import argparse
+from .preemptiveagent import PreEmptiveAgent
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Scouring>=1')
+parser.add_argument('--fullobs', type=int, default=0)
+parser.add_argument('--num_episodes', type=int, default=1000)
+parser.add_argument('--save', type=int, default=1)
+args = parser.parse_args()
+
+# Set value of save here
+save=args.save
+print1 = print
+if save:
+    print = lambda *x: None
 #########################
 ## Main code
 #########################
-#env = gym.make('MiniGrid-HallwayWithVictims-v0')
-#env = gym.make('MiniGrid-HallwayWithVictims-SARmap-v0')
-env = gym.make("MiniGrid-NumpyMapMinecraftUSARRandomVictims-v0")
-#env = gym.make("MiniGrid-NumpyMapMinecraftUSAR-v4")
+env = gym.make("MiniGrid-NumpyMapMinecraftUSAR-v0")
 env.agent_view_size = 9
-env.dog = False
 env = wrappers.AgentExtraInfoWrapper(env)
 
-agent = PreEmptiveAgent(env) if args.agenttype == 0 else PreEmptiveAgent(env)
+agent = PreEmptiveAgent(env) if args.agenttype == 0 else None
 print(agent)
 
 # Init env and action
