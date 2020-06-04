@@ -88,9 +88,9 @@ while episodes < args.num_episodes:
         plt.title('Ground truth')
 
         plt.subplot(122)
-        plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        #plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
         #plt.imshow(agent.get_prob_map(['door']).T, 'jet')
-        #plt.imshow(agent.get_entropy().T, 'jet')
+        plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Agent\'s belief')
         plt.suptitle(agent.get_dogml_info())
 

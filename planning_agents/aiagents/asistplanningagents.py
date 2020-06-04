@@ -206,6 +206,9 @@ class PlanAgent:
         img[:, :, 1] += self.get_prob_map(['goal'], color='green')
         img[:, :, 0] += self.get_prob_map(['goal'], color='yellow')
         img[:, :, 1] += self.get_prob_map(['goal'], color='yellow')
+        img[:, :, 0] += 0.5*self.get_prob_map(['goal'], color='white')
+        img[:, :, 1] += 0.5*self.get_prob_map(['goal'], color='white')
+        img[:, :, 2] += 0.5*self.get_prob_map(['goal'], color='white')
         #img += self.get_prob_map(['goal'], color='yellow')[:, :, None] * 0.5
         # The doors are all blue
         doors = self.get_prob_map(['door'])
@@ -313,7 +316,7 @@ class PlanAgent:
 
         # Create a dummy victim ahead if you see some info
         # TODO
-        if bark >= 0:
+        if bark >= 0 and False:
             #dirvec = NUM_TO_DIR[self.agent_dir]
             #fwd_cell = self.agent_pos + dirvec
             #fwd_cell = fwd_cell + dirvec
@@ -336,7 +339,6 @@ class PlanAgent:
                     for dy in [-1, 0, 1]:
                         if abs(dx) + abs(dy) != 1:
                             continue
-
                         nbr = nodes[0] + (dx, dy)
                         if self.belief[nbr[0], nbr[1], OBJECT_TO_IDX['wall']-1] > 0.5 \
                             or self.belief[nbr[0], nbr[1], OBJECT_TO_IDX['door']-1] > 0.5: \
@@ -345,8 +347,13 @@ class PlanAgent:
                             nodes.append(nbr)
                 nodes = nodes[1:]
 
-            # Given the bark number, update belief
+            # Given the bark number, update belief (only where entropy is high)
             y, x = np.where(room == 1)
+            pr = self.belief[y, x]
+            entr = (-pr * np.log(pr + 1e-100)).sum(-1)
+            entr = (entr > 1e-2)
+            y, x = y[entr], x[entr]
+
             barkcolor = 'yellow' if bark == 2 else 'green'
             if bark > 0:
                 self.belief[y, x] = 0
