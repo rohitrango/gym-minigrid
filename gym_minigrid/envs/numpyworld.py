@@ -332,6 +332,7 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
     def _gen_grid(self, width, height):
 
         # Create an empty grid
+        self.victimcount = 0
         self.grid = Grid(width, height)
 
         # Create the grid
@@ -369,8 +370,10 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
 
         for _ in range(self.num_victims_red):
             self.place_obj(Goal('yellow'))
+            self.victimcount += 1
         for _ in range(self.num_victims_green):
             self.place_obj(Goal('green'))
+            self.victimcount += 1
 
         self.agent_pos = self.agent_start_pos
         self.grid.set(*self.agent_start_pos, None)
