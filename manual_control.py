@@ -29,7 +29,12 @@ def reset():
 
 def step(action):
     obs, reward, done, info = env.step(action)
-    print(obs.get('bark'))
+    obss = dict()
+    for k, v in obs.items():
+        if k == 'image':
+            continue
+        obss[k]  = v
+    print(obss)
     print('step=%s, reward=%.2f' % (env.step_count, reward))
 
     if done:

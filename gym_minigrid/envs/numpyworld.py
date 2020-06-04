@@ -58,6 +58,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             10: 3,
             255: 2,
         }
+        self.victimlifetime = None
         super().__init__(grid_size=50, max_steps=1000, agent_view_size=7)
 
 
@@ -69,11 +70,28 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                 nmap = nmap + (self.array == i).astype(int)
         return nmap
 
+
+    def gen_obs(self):
+        obs = super().gen_obs()
+        obs['time'] = self.time
+        obs['victimlifetime'] = self.victimlifetime
+        obs['numyellow'] = self.numyellow
+        obs['numgreen'] = self.numgreen
+        obs['reward_yellow'] = self.colorbasedreward('yellow')
+        obs['reward_green'] = self.colorbasedreward('green')
+        return obs
+
+
     def _gen_grid(self, width, height):
 
         # Create an empty grid
         self.grid = Grid(width, height)
         self.victimcount = 0
+
+        # Additional variables
+        self.time = 0
+        self.numyellow = 0
+        self.numgreen = 0
 
         # Create the grid
         self.array = np.load(self.numpyFile)
@@ -104,12 +122,22 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                             # print(entity_index, entity_name, entity_color, entity_toggletime)
                             if entity_color != '':
                                 if entity_class == Goal and entity_color in ['yellow', 'green']:
+                                    if entity_color == 'yellow':
+                                        self.numyellow += 1
+                                    elif entity_color == 'green':
+                                        self.numgreen += 1
                                     self.victimcount += 1
                                 self.put_obj(entity_class(color=entity_color), mg_j, mg_i)
                             else:
                                 if entity_class == Goal:
                                     self.victimcount += 1
-                                    self.put_obj(entity_class(color=np.random.choice(['yellow', 'green'])), mg_j, mg_i)
+                                    vcolor = np.random.choice(['yellow', 'green'])
+                                    if vcolor == 'yellow':
+                                        self.numyellow += 1
+                                    elif vcolor == 'green':
+                                        self.numgreen += 1
+                                    self.victimcount += 1
+                                    self.put_obj(entity_class(color=vcolor), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
 
@@ -188,16 +216,20 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             return 5
         elif color == 'white':
             return 0
+        elif color == 'red':
+            return 0
         else:
             NotImplementedError
 
     def step(self, action):
+        self.time += 1
         obs, reward, done, info = MiniGridEnv.step(self, action)
         cur_cell = tuple(self.agent_pos)
 
-        bark = 0
+        bark = -1
         box = self.roomViews.get(cur_cell)
         if box is not None and action == self.actions.forward:
+            bark = 0
             x, y = box
             ele = self.array[y, x]
             idx = np.where((ele == 7).astype(int) + ele == 3)
@@ -216,7 +248,6 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                         bark = 1
 
         obs['bark'] = bark
-        print(bark)
 
         if action == self.actions.forward or True:
             cur_cell = self.grid.get(*self.agent_pos)
