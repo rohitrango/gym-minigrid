@@ -176,12 +176,13 @@ class AgentExtraInfoWrapper(gym.core.ObservationWrapper):
                     })
 
     def observation(self, obs):
-        obs = {
-                'image': obs['image'],
+        obss = {
                 'pos': self.env.agent_pos,
                 'dir': self.env.agent_dir,
                 }
-        return obs
+        for k, v in obs.items():
+            obss[k] = v
+        return obss
 
     def get_map(self):
         grid = self.env.grid.encode()

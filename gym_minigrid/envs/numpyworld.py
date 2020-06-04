@@ -11,7 +11,7 @@ RESOURCES_DIR = (Path(__file__).parent / './resources').resolve()
 
 class NumpyMapMinecraftUSAR(MiniGridEnv):
 
-    def __init__(self, numpyFile=Path(RESOURCES_DIR, 'tmp_grid.npy'), agent_start_pos=[24, 25], agent_start_dir=2):
+    def __init__(self, numpyFile=Path(RESOURCES_DIR, 'tmp_grid.npy'), agent_start_pos=[31, 25], agent_start_dir=2):
         self.numpyFile = numpyFile
         self.roomFile = Path(RESOURCES_DIR, 'tmp_grid_roominfo.npy')
         self.agent_start_pos = agent_start_pos
@@ -45,8 +45,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             255: 'red',
         }
         self.toggletimes_mapping = {
-                'yellow': 10,
-                'green': 3,
+                'yellow': 1,
+                'green': 1,
                 'white': 0,
                 'red':0,
         }

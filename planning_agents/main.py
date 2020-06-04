@@ -11,7 +11,7 @@ from scipy.ndimage import zoom
 from gym_minigrid import wrappers
 from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
 import argparse
-from .aiagents import PreEmptiveAgent
+from aiagents import PreEmptiveAgent
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Scouring>=1')
@@ -38,7 +38,7 @@ print(agent)
 # Init env and action
 obs = env.reset()
 info = {}
-agent.reset(env.get_map())
+agent.reset(env.get_map(), obs)
 act = agent.predict(obs, info)
 
 #agent.update(obs)
@@ -71,7 +71,7 @@ while episodes < args.num_episodes:
         episodes += 1
         num_steps = 0
         obs = env.reset()
-        agent.reset(env.get_map())
+        agent.reset(env.get_map(), obs)
         # Add this episode data to all episodes
         if len(current_episode_actions['act']) <= 1000:
             expert_data.append(current_episode_actions)
@@ -88,9 +88,9 @@ while episodes < args.num_episodes:
         plt.title('Ground truth')
 
         plt.subplot(122)
-        #plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
+        plt.imshow(agent.get_belief_map_image().transpose(1, 0, 2))
         #plt.imshow(agent.get_prob_map(['door']).T, 'jet')
-        plt.imshow(agent.get_entropy().T, 'jet')
+        #plt.imshow(agent.get_entropy().T, 'jet')
         plt.title('Agent\'s belief')
         plt.suptitle(agent.get_dogml_info())
 

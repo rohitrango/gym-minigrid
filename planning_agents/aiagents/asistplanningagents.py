@@ -69,12 +69,6 @@ class PlanAgent:
         # Dog maximum likelihood graph
         self.dogmlgraph = {'green': [0, 0, 0], 'yellow': [0, 0, 0]}
 
-
-    def _init_subagent(self):
-        # Extra comamnds for subagent (use as per your agent = should be not implmented for the base class)
-        raise NotImplementedError
-
-
     def is_victim_in_priority(self, colnum):
         # Given a color number, check if the victim is in priority
         # check from victimcolor
@@ -141,7 +135,7 @@ class PlanAgent:
             # If you're exploring and see something
             A = self.agent_view_size
             maxprob = 0
-            for color in self.victimcolors:
+            for color in self.victimcolor:
                 maxprob = maxprob + self.get_prob_map(['goal'], zoom_factor=1, color=color)
             maxprob = np.max(maxprob)
             if maxprob >= 0.7:
@@ -149,7 +143,7 @@ class PlanAgent:
                 self.plan = []
 
 
-    def reset(self, nmap, info):
+    def reset(self, nmap, obs):
         self.belief = np.ones((self.width + 2*self.agent_view_size, self.height + 2*self.agent_view_size, self.numobjects)) / self.numobjects
         # Keep track of last visited
         self.lastvisited = np.zeros((self.width + 2*self.agent_view_size, self.height + 2*self.agent_view_size))
@@ -175,7 +169,7 @@ class PlanAgent:
         self._current_plan = None
 
         # Update other info
-        self._init_subagent(info)
+        self._init_subagent(obs)
 
 
     def get_max_belief(self):
@@ -235,7 +229,8 @@ class PlanAgent:
         x, y = self.agent_pos
         h = np.arange(belief.shape[0])
         hh, ww = np.meshgrid(h, h)
-        dist = np.sqrt((hh - x)**2 + (ww - y)**2) / belief.shape[0]
+        #dist = np.sqrt((hh - x)**2 + (ww - y)**2) / belief.shape[0]
+        dist = (np.abs(hh - x) + np.abs(ww - y)) / belief.shape[0]
         dist = dist.T
 
         # get location of subgoal
@@ -301,7 +296,7 @@ class PlanAgent:
         img = obs['image']
         pos = obs['pos']
         agdir = obs['dir']
-        bark = obs['bark']
+        bark = obs.get('bark', -1)
 
         # Save the values for planning ahead
         self.agent_pos = np.array(pos)
@@ -317,10 +312,19 @@ class PlanAgent:
             self.dogmlgraph[key][2] += g
 
         # Create a dummy victim ahead if you see some info
+        # TODO
         if bark >= 0:
-            dirvec = NUM_TO_DIR[self.agent_dir]
-            fwd_cell = self.agent_pos + dirvec
-            fwd_cell = fwd_cell + dirvec
+            #dirvec = NUM_TO_DIR[self.agent_dir]
+            #fwd_cell = self.agent_pos + dirvec
+            #fwd_cell = fwd_cell + dirvec
+            # Check for door nearby
+            for dirvec in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                fwd_cell = self.agent_pos + dirvec
+                fx, fy = fwd_cell
+                if self.belief[A+fx, A+fy, OBJECT_TO_IDX['door']-1] > 0.5:
+                    fwd_cell = fwd_cell + dirvec
+                    break
+            assert np.abs(fwd_cell - self.agent_pos).sum() == 2
 
             # Get room area
             room = np.zeros(self.belief.shape[:2])
@@ -358,7 +362,7 @@ class PlanAgent:
         # Now, update the belief from the observation that we saw
         topX, topY, botX, botY = self.get_bounds(pos, agdir)
         h, w = img.shape[:2]
-        #img[w//2, h-1, 0] = 0  # if we cant trust the object on agent's position in the observation
+        img[w//2, h-1, 0] = 0  # if we cant trust the object on agent's position in the observation
         for i in range(agdir + 1):
             img = self.rotate_right(img)
 
@@ -446,12 +450,14 @@ class PlanAgent:
         elif pref == 'explore':
             entropy = -self.belief * np.log(self.belief + 1e-100)
             entropy = entropy[A:-A, A:-A].mean(2)
+            entropy[self.agent_pos[0], self.agent_pos[1]] = 0
             # Get shape
             H, W = entropy.shape
             # Have a map based on spatial distance
             xx, yy = np.arange(H), np.arange(W)
             xx, yy = np.meshgrid(xx, yy)
-            dist = np.sqrt((xx - self.agent_pos[0])**2 + (yy - self.agent_pos[1])**2).T
+            dist = np.abs(xx - self.agent_pos[0]) + np.abs(yy - self.agent_pos[1])
+            dist = dist.T * 1.0
             dist /= H
             entropydist = entropy / (1 + dist)
             # Sample from it
@@ -464,10 +470,6 @@ class PlanAgent:
                 return [x, y]
             except:
                 return None
-
-
-    def _get_preferences(self):
-        raise NotImplementedError
 
 
     def update_plan(self):
@@ -608,4 +610,19 @@ class PlanAgent:
             nbrs.append([x, y+dy])
         return nbrs
 
+    def _init_subagent(self, obs):
+        # Extra comamnds for subagent (use as per your agent = should be not implmented for the base class)
+        raise NotImplementedError
 
+    def _get_preferences(self):
+        raise NotImplementedError
+
+
+
+
+class PreEmptiveAgent(PlanAgent):
+    def _init_subagent(self, obs):
+        pass
+
+    def _get_preferences(self):
+        return ['goal', 'explore']
