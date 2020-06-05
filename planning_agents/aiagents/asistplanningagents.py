@@ -446,7 +446,7 @@ class PlanAgent:
             probgoal = self.belief[A:-A, A:-A, goalcode]
             # Dont get gray victims
             if pref == 'goal':
-                probgoal *= (1 - self.colors[A:-A, A:-A, COLOR_TO_IDX['white']])
+                probgoal *= (self.colors[A:-A, A:-A, [COLOR_TO_IDX['yellow'], COLOR_TO_IDX['green']]]).sum(-1)
 
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
@@ -632,7 +632,6 @@ class PlanAgent:
 
     def _get_preferences(self):
         raise NotImplementedError
-
 
 
 

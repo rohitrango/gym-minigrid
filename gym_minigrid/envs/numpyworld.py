@@ -220,6 +220,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         obs, reward, done, info = MiniGridEnv.step(self, action)
         cur_cell = tuple(self.agent_pos)
 
+        # Check for dog beeps
         bark = -1
         box = self.roomViews.get(cur_cell)
         if box is not None and action == self.actions.forward:
@@ -243,7 +244,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         obs['bark'] = bark
 
         done = False
-        # Check for triaged victims
+        # Check for triaged victims, if yes, provide reward and done accordingly
         if action == self.actions.toggle:
             fwd_cell = self.grid.get(*self.front_pos)
             if fwd_cell is not None and fwd_cell.type == 'goal':
@@ -254,6 +255,22 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                     print("{} victims remaining".format(self.victimcount))
                     if self.victimcount == 0:
                         done = True
+
+        # Kill the remaining yellow victims if time is up
+        wherevictims = 0
+        if self.time == self.victimlifetime:
+            # Get all goals
+            for k, v in self.index_mapping.items():
+                if v == 'goal':
+                    wherevictims = wherevictims + (self.array == k)
+
+            # replace yellow ones with red
+            y, x = np.where(wherevictims)
+            for y1, x1 in zip(y, x):
+                cell = self.grid.get(x1, y1)
+                if cell is not None and cell.type == 'goal' and cell.color == 'yellow':
+                    self.victimcount -= 1
+                    self.put_obj(Goal('red', toggletimes=0), x1, y1)
 
         '''
         if action == self.actions.forward and False:
