@@ -66,6 +66,9 @@ class PlanAgent:
         self.reward_green = None
         self.reward_yellow = None
 
+        # Tradeoff variables
+        self.boxcost = 0.5
+
         # Dog maximum likelihood graph
         self.dogmlgraph = {'green': [0, 0, 0], 'yellow': [0, 0, 0]}
 
@@ -438,15 +441,26 @@ class PlanAgent:
             return ACTION_TO_NUM_MAPPING['done']
 
 
-    def get_location_from_preference(self, pref):
+    def get_location_from_preference(self, prefstr):
+        # prefstr is a string preference containing multiple color info, etc.
         A = self.agent_view_size
+        pref = prefstr.split(' ')[0]
+        extra = prefstr.split(' ')[1:] # contains extra parameters of the preference
+
         if pref in ['goal', 'box', 'door']:
             # Search for a high confidence goal according to belief
             goalcode = OBJECT_TO_IDX[pref] - 1
             probgoal = self.belief[A:-A, A:-A, goalcode]
             # Dont get gray victims
             if pref == 'goal':
-                probgoal *= (self.colors[A:-A, A:-A, [COLOR_TO_IDX['yellow'], COLOR_TO_IDX['green']]]).sum(-1)
+                # If nothing specified, go after yellow and green victims
+                if extra == []:
+                    colors = [COLOR_TO_IDX['yellow'], COLOR_TO_IDX['green']]
+                else:
+                    # Go after colors that are specified
+                    colors = [COLOR_TO_IDX[x] for x in extra]
+                # Multiply with the colors
+                probgoal *= (self.colors[A:-A, A:-A, colors]).sum(-1)
 
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
@@ -568,8 +582,12 @@ class PlanAgent:
                 #plt.draw()
                 visited[nbr[0], nbr[1]] = 1
                 # Not visited, time to visit this
-                prob = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1, OBJECT_TO_IDX['key']-1]].sum()
-                gc = node[1] + 1 + int(prob > 0.7)*1e50
+                # obscost is a very high cost for crashing into lava, wall or key objects
+                obscost = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['lava']-1, OBJECT_TO_IDX['wall']-1, OBJECT_TO_IDX['key']-1]].sum()
+                obscost = int(obscost > 0.7)*1e50
+                # get a cost for crossing a box too because you have to toggle it
+                boxcost = belief[nbr[0], nbr[1], [OBJECT_TO_IDX['box']-1]].sum() * self.boxcost
+                gc = node[1] + 1 + obscost + boxcost
                 # Get f
                 fc = gc + self.dist_func(nbr, dst)
                 heappush(frontier, (fc, gc, nbr))
