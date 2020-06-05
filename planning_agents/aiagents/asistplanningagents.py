@@ -78,6 +78,15 @@ class PlanAgent:
         return False
 
 
+    def leakyabs(self, I, d):
+        '''
+        Use this to create bias in your agent
+        '''
+        idxneg = (I < 0)
+        I[idxneg] = I[idxneg] * 0.5
+        return np.abs(I)
+
+
     def check_safe_plan(self):
         # TODO: Check if the next step is safe, if not then delete the existing plan
         dirvec = NUM_TO_DIR[self.agent_dir]
@@ -233,11 +242,11 @@ class PlanAgent:
         h = np.arange(belief.shape[0])
         hh, ww = np.meshgrid(h, h)
         #dist = np.sqrt((hh - x)**2 + (ww - y)**2) / belief.shape[0]
-        dist = (np.abs(hh - x) + np.abs(ww - y)) / belief.shape[0]
+        dist = (self.leakyabs(hh - x, 'x') + self.leakyabs(ww - y, 'y')) / belief.shape[0]
         dist = dist.T
 
         # get location of subgoal
-        x, y = self._subgoal
+        # x, y = self._subgoal
         #ent[x, y] = np.max(ent)
         # zoom
         ent = zoom(ent/(1 + dist), 4, order=1)
@@ -463,7 +472,7 @@ class PlanAgent:
             # Have a map based on spatial distance
             xx, yy = np.arange(H), np.arange(W)
             xx, yy = np.meshgrid(xx, yy)
-            dist = np.abs(xx - self.agent_pos[0]) + np.abs(yy - self.agent_pos[1])
+            dist = self.leakyabs(xx - self.agent_pos[0], 'x') + self.leakyabs(yy - self.agent_pos[1], 'y')
             dist = dist.T * 1.0
             dist /= H
             entropydist = entropy / (1 + dist)
