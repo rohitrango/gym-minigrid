@@ -59,7 +59,7 @@ class PlanAgent:
         self._current_plan = None
 
         # Other variables (for Player to make tradeoffs)
-        self.time = None
+        self.time = 0
         self.victimlifetime = None
         self.numyellow = None
         self.numgreen = None
@@ -180,13 +180,15 @@ class PlanAgent:
         self._subgoal = None
         self._current_plan = None
 
+        self.time = 0
+
         # Update other info
         self._init_subagent(obs)
 
 
     def get_max_belief(self):
         A = self.agent_view_size
-        belief = self.belief[A:-A, A:-A]
+        belief = self.belief[A:-A, A:-A] + 0
         return np.argmax(belief, 2)
 
 
@@ -210,7 +212,7 @@ class PlanAgent:
     def get_belief_map_image(self):
         # Get an image version of belief (because heatmaps are too confusing for non-statisticians)
         A = self.agent_view_size
-        belief = self.belief[A:-A, A:-A]
+        belief = self.belief[A:-A, A:-A] + 0
         img = np.zeros((belief.shape[0], belief.shape[1], 3))
         # The walls are white in color
         img += self.get_prob_map(['wall'])[:, :, None]
@@ -308,6 +310,7 @@ class PlanAgent:
 
     def update(self, obs, info):
         # Given the observation, update your belief
+        self.time += 1
         img = obs['image']
         pos = obs['pos']
         agdir = obs['dir']
@@ -425,7 +428,8 @@ class PlanAgent:
         return IDX_TO_OBJECT[idx + 1], cidx, sidx
 
 
-    def predict(self, obs, info):
+    def predict(self, obs, info, rew=None):
+        self._update_from_reward(rew)
         self.update(obs, info)
         self.check_safe_plan()
         if self.plan == []:
@@ -450,7 +454,7 @@ class PlanAgent:
         if pref in ['goal', 'box', 'door']:
             # Search for a high confidence goal according to belief
             goalcode = OBJECT_TO_IDX[pref] - 1
-            probgoal = self.belief[A:-A, A:-A, goalcode]
+            probgoal = self.belief[A:-A, A:-A, goalcode] + 0
             # Dont get gray victims
             if pref == 'goal':
                 # If nothing specified, go after yellow and green victims
@@ -478,7 +482,7 @@ class PlanAgent:
             return [x[minidx], y[minidx]]
 
         elif pref == 'explore':
-            entropy = -self.belief * np.log(self.belief + 1e-100)
+            entropy = -self.belief * np.log(self.belief + 1e-100) + 0
             entropy = entropy[A:-A, A:-A].mean(2)
             entropy[self.agent_pos[0], self.agent_pos[1]] = 0
             # Get shape
@@ -651,11 +655,12 @@ class PlanAgent:
     def _get_preferences(self):
         raise NotImplementedError
 
+    def _update_from_reward(self, rew):
+        if rew is None or self.reward_green is None or self.reward_yellow is None:
+            return None
 
+        if rew == self.reward_green:
+            self.numgreen -= 1
+        elif rew == self.reward_yellow:
+            self.numyellow -= 1
 
-class PreEmptiveAgent(PlanAgent):
-    def _init_subagent(self, obs):
-        pass
-
-    def _get_preferences(self):
-        return ['goal', 'explore']

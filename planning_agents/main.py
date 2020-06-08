@@ -11,7 +11,7 @@ from scipy.ndimage import zoom
 from gym_minigrid import wrappers
 from gym_minigrid.minigrid import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
 import argparse
-from aiagents import PreEmptiveAgent
+from aiagents import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Scouring>=1')
@@ -32,14 +32,16 @@ env = gym.make("MiniGrid-NumpyMapMinecraftUSAR-v0")
 env.agent_view_size = 9
 env = wrappers.AgentExtraInfoWrapper(env)
 
-agent = PreEmptiveAgent(env) if args.agenttype == 0 else None
+#agent = PreEmptiveAgentLeft(env) if args.agenttype == 0 else PreEmptiveAgentRight(env)
+#agent = SelectiveAgentLeft(env) if args.agenttype == 0 else SelectiveAgentRight(env)
+agent = SelectiveAgentV1Left(env) if args.agenttype == 0 else SelectiveAgentV1Right(env)
 print(agent)
 
 # Init env and action
 obs = env.reset()
 info = {}
 agent.reset(env.get_map(), obs)
-act = agent.predict(obs, info)
+act = agent.predict(obs, info, 0)
 
 #agent.update(obs)
 #print(obs['pos'], obs['dir'])
@@ -50,6 +52,7 @@ expert_data = []
 current_episode_actions = dict(obs=[], act=[], rew=[])
 episodes = 0
 num_steps = 0
+rew = 0
 
 while episodes < args.num_episodes:
     #act = int(input("Enter action "))
@@ -77,7 +80,7 @@ while episodes < args.num_episodes:
             expert_data.append(current_episode_actions)
         current_episode_actions = dict(obs=[], act=[], rew=[])
 
-    act = agent.predict(obs, info)
+    act = agent.predict(obs, info, rew)
     #print(obs['pos'], obs['dir'])
 
     if not save:

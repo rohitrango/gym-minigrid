@@ -50,7 +50,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                 'white': 0,
                 'red':0,
         }
-        self.victimlifetime = None
+        #self.victimlifetime = None
+        self.victimlifetime = 500
         super().__init__(grid_size=50, max_steps=1000, agent_view_size=7)
 
 
