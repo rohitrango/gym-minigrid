@@ -508,7 +508,13 @@ class PlanAgent:
             dist = dist.T * 1.0
             dist /= H
             entropydist = entropy / (1 + dist)
-            entropydist = self.get_frontiers_map() * entropydist
+            frontier_map = self.get_frontiers_map()
+            # Use full entropy map or masked one (if using full entropy map, then just take argmax)
+            fullent = True
+            if np.max(entropydist * frontier_map) > 0:
+                entropydist = frontier_map * entropydist
+                # TODO: make this part fast
+                fullent = True
             # Sample from it
             N = entropy.reshape(-1).shape[0]
             try:
@@ -516,9 +522,13 @@ class PlanAgent:
                 #goal = np.random.choice(np.arange(N), p=p.reshape(-1))
                 #goal = np.argmax(entropydist)
                 #x, y = goal//H, goal%H
-                x, y = np.where(entropydist > 0)
-                idx = self._get_minpath_idx(x, y)
-                x, y = x[idx], y[idx]
+                if fullent:
+                    goal = np.argmax(entropydist)
+                    x, y = goal//H, goal%H
+                else:
+                    x, y = np.where(entropydist > 0)
+                    idx = self._get_minpath_idx(x, y)
+                    x, y = x[idx], y[idx]
                 return [x, y]
             except:
                 return None
