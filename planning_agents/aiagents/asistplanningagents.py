@@ -250,6 +250,8 @@ class PlanAgent:
         dist = (self.leakyabs(hh - x, 'x') + self.leakyabs(ww - y, 'y')) / belief.shape[0]
         dist = dist.T
 
+        # Multiply with frontier
+        ent = ent * self.get_frontiers_map()
         # get location of subgoal
         # x, y = self._subgoal
         #ent[x, y] = np.max(ent)
@@ -414,6 +416,16 @@ class PlanAgent:
         self.objstates[topX + x + self.agent_view_size, topY + y + self.agent_view_size] = statevals
         self.colors[topX + x + self.agent_view_size, topY + y + self.agent_view_size] = colorvals
 
+        # update visited as well
+        A = self.agent_view_size
+        self.lastvisited[topX + x + A, topY + y + A] = 1
+
+
+    def get_lastvisited_map(self):
+        A = self.agent_view_size
+        visited = self.lastvisited[A:-A, A:-A]
+        return visited
+
 
     def query_cell(self, pos):
         A = self.agent_view_size
@@ -469,7 +481,7 @@ class PlanAgent:
             x, y = np.where(probgoal > 0.7)
             if len(x) == 0:
                 return None
-            # Check for unopened doors only
+            # Check for unopened doors only [DEPRECATE THIS]
             if pref == 'door':
                 doorstate = np.argmax(self.objstates[A+x, A+y], 1)
                 doorstate = np.where(doorstate != STATE_TO_IDX['open'])
@@ -478,7 +490,9 @@ class PlanAgent:
                     return None
             # Get the one with min index
             print('Choosing from {} doors'.format(len(x)))
-            minidx = np.argmin(np.abs(x - self.agent_pos[0]) + np.abs(y - self.agent_pos[1]))
+            #minidx = np.argmin(np.abs(x - self.agent_pos[0]) + np.abs(y - self.agent_pos[1]))
+            # Take astar distance from each of them
+            minidx = self._get_minpath_idx(x, y)
             return [x[minidx], y[minidx]]
 
         elif pref == 'explore':
@@ -494,16 +508,52 @@ class PlanAgent:
             dist = dist.T * 1.0
             dist /= H
             entropydist = entropy / (1 + dist)
+            entropydist = self.get_frontiers_map() * entropydist
             # Sample from it
             N = entropy.reshape(-1).shape[0]
             try:
-                p = entropydist/entropydist.sum()
+                #p = entropydist/entropydist.sum()
                 #goal = np.random.choice(np.arange(N), p=p.reshape(-1))
-                goal = np.argmax(entropydist)
-                x, y = goal//H, goal%H
+                #goal = np.argmax(entropydist)
+                #x, y = goal//H, goal%H
+                x, y = np.where(entropydist > 0)
+                idx = self._get_minpath_idx(x, y)
+                x, y = x[idx], y[idx]
                 return [x, y]
             except:
                 return None
+
+
+    def _get_minpath_idx(self, x, y):
+        '''
+        Get the index which has minimum path length
+        '''
+        pathlength = []
+        for _x, _y in zip(x, y):
+            path = self.astar((_x, _y))
+            path = list(filter(lambda x: x == 'forward', path))
+            pathlength.append(len(path))
+        return np.argmin(pathlength)
+
+
+    def get_frontiers_map(self):
+        # Get frontiers map
+        A = self.agent_view_size
+        visited = self.get_lastvisited_map()
+        # Get neighbours to set frontiers
+        nbr = visited * 0
+        # Check for neighbours validity
+        classes = ['wall']
+        classes = [OBJECT_TO_IDX[x]-1 for x in classes]
+        obstacle = 1 - self.belief[A:-A, A:-A, classes].sum(-1)
+        # Get neighbours
+        for i in [-1, 1]:
+            nbr[1:] += (visited[:-1] * obstacle[:-1] + 0)
+            nbr[:-1] += (visited[1:] * obstacle[1:] + 0)
+            nbr[:, 1:] += (visited[:, :-1] * obstacle[:, :-1] + 0)
+            nbr[:, :-1] += (visited[:, 1:] * obstacle[:, 1:] + 0)
+        frontier = (nbr > 0) & (visited == 0)
+        return frontier
 
 
     def update_plan(self):
