@@ -7,8 +7,9 @@ from gym_minigrid import preprocessing
 
 
 RESOURCES_DIR = (Path(__file__).parent / './resources').resolve()
-SECONDS_TO_STEPS = 4
-
+SECONDS_TO_STEPS = 2
+TOTAL_TIME = 900
+YELLOWTIME = 425
 # Use step size
 # 1 second = 4 steps (because we have walking speed of agent = 4.3m/s = which means it covers 4 blocks in 1 second = 4 steps in 1 second)
 # 5 minutes: 4 * 300 = 1200 steps
@@ -50,13 +51,13 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             255: 'red',
         }
         self.toggletimes_mapping = {
-                'yellow': 1,
-                'green': 1,
+                'yellow': int(15 * SECONDS_TO_STEPS),
+                'green': int(7.5  * SECONDS_TO_STEPS),
                 'white': 0,
                 'red':0,
         }
-        self.victimlifetime = 300 * SECONDS_TO_STEPS
-        super().__init__(grid_size=50, max_steps=int(SECONDS_TO_STEPS * 600), agent_view_size=7, default_vis=False)
+        self.victimlifetime = YELLOWTIME * SECONDS_TO_STEPS
+        super().__init__(grid_size=50, max_steps=int(SECONDS_TO_STEPS * TOTAL_TIME), agent_view_size=7, default_vis=False)
 
 
     def _get_filtered_map(self, grid):
@@ -222,9 +223,9 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
     def colorbasedreward(self, color):
         if color == 'yellow':
-            return 10
+            return 25
         elif color == 'green':
-            return 5
+            return 10
         elif color == 'white':
             return 0
         elif color == 'red':
