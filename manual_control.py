@@ -107,6 +107,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 env = gym.make(args.env)
+env.agent_view_size=17
 env.dog = False
 #env = DACWrapper(env)
 # env = gym.wrappers.Monitor(env, "recording")

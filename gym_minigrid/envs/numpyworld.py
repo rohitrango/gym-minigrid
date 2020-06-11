@@ -52,7 +52,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         }
         #self.victimlifetime = None
         self.victimlifetime = 500
-        super().__init__(grid_size=50, max_steps=1000, agent_view_size=7)
+        super().__init__(grid_size=50, max_steps=1000, agent_view_size=7, default_vis=False)
 
 
     def _get_filtered_map(self, grid):
@@ -79,6 +79,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
         # Create an empty grid
         self.grid = Grid(width, height)
+        self.grid.wall_rect(0, 0, width, height, Wall)
         self.victimcount = 0
 
         # Additional variables

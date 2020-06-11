@@ -379,6 +379,7 @@ class Grid:
         self.height = height
 
         self.grid = [None] * width * height
+        self.default_vis = True
 
     def __contains__(self, key):
         if isinstance(key, WorldObj):
@@ -615,36 +616,99 @@ class Grid:
 
     def process_vis(grid, agent_pos):
         mask = np.zeros(shape=(grid.width, grid.height), dtype=np.bool)
-
         mask[agent_pos[0], agent_pos[1]] = True
 
-        for j in reversed(range(0, grid.height)):
-            for i in range(0, grid.width-1):
-                if not mask[i, j]:
-                    continue
+        if grid.default_vis:
+            # This is for the default observation model
+            for j in reversed(range(0, grid.height)):
+                for i in range(0, grid.width-1):
+                    if not mask[i, j]:
+                        continue
 
+                    cell = grid.get(i, j)
+                    if cell and not cell.see_behind():
+                        continue
+
+                    mask[i+1, j] = True
+                    if j > 0:
+                        mask[i+1, j-1] = True
+                        mask[i, j-1] = True
+
+                for i in reversed(range(1, grid.width)):
+                    if not mask[i, j]:
+                        continue
+
+                    cell = grid.get(i, j)
+                    if cell and not cell.see_behind():
+                        continue
+
+                    mask[i-1, j] = True
+                    if j > 0:
+                        mask[i-1, j-1] = True
+                        mask[i, j-1] = True
+        else:
+            # This is for our custom visualization
+            # first, move forward and see how far we can go
+            j = agent_pos[1]
+            for i in range(agent_pos[0]+1, grid.width):
+                cell = grid.get(i, j)
+                mask[i, j] = True
+                if cell and not cell.see_behind():
+                    break
+            for i in reversed(range(0, agent_pos[0])):
+                cell = grid.get(i, j)
+                mask[i, j] = True
+                if cell and not cell.see_behind():
+                    break
+
+            # March as much as u can infront
+            i = agent_pos[0]
+            for j in reversed(range(0, grid.height-1)):
+                mask[i, j] = True
                 cell = grid.get(i, j)
                 if cell and not cell.see_behind():
-                    continue
+                    break
 
-                mask[i+1, j] = True
-                if j > 0:
-                    mask[i+1, j-1] = True
-                    mask[i, j-1] = True
+            # marching for right side
+            for i in range(agent_pos[0]+1, grid.width):
+                for j in reversed(range(0, grid.height-1)):
+                    if not mask[i, j+1] or not mask[i-1, j]:
+                        continue
+                    cell = grid.get(i, j)
+                    celladj = grid.get(i, j+1)
+                    cellbeside = grid.get(i-1, j)
+                    # Get their conditions
+                    cell = cell is not None and not cell.see_behind()
+                    celladj = celladj is not None and not celladj.see_behind()
+                    cellbeside = cellbeside is not None and not cellbeside.see_behind()
 
-            for i in reversed(range(1, grid.width)):
-                if not mask[i, j]:
-                    continue
+                    if not cell and celladj:
+                        break
+                    if not cell and cellbeside and False:
+                        break
+                    mask[i, j] = True
 
-                cell = grid.get(i, j)
-                if cell and not cell.see_behind():
-                    continue
+            # marching for left side
+            for i in reversed(range(0, agent_pos[0])):
+                for j in reversed(range(0, grid.height-1)):
+                    if not mask[i, j+1] or not mask[i+1, j]:
+                        continue
+                    cell = grid.get(i, j)
+                    celladj = grid.get(i, j+1)
+                    cellbeside = grid.get(i+1, j)
+                    # Get their conditions
+                    cell = cell is not None and not cell.see_behind()
+                    celladj = celladj is not None and not celladj.see_behind()
+                    cellbeside = cellbeside is not None and not cellbeside.see_behind()
 
-                mask[i-1, j] = True
-                if j > 0:
-                    mask[i-1, j-1] = True
-                    mask[i, j-1] = True
+                    if not cell and celladj:
+                        break
+                    if not cell and cellbeside and False:
+                        break
+                    mask[i, j] = True
 
+
+        # Set mask outputs to grid
         for j in range(0, grid.height):
             for i in range(0, grid.width):
                 if not mask[i, j]:
@@ -708,7 +772,8 @@ class MiniGridEnv(gym.Env):
         see_through_walls=False,
         extended_actions=False,
         seed=1337,
-        agent_view_size=7
+        agent_view_size=7,
+        default_vis=True
     ):
         # Can't set both grid_size and width/height
         if grid_size:
@@ -717,6 +782,7 @@ class MiniGridEnv(gym.Env):
             height = grid_size
 
         # Action enumeration for this environment
+        self.default_vis = default_vis
         self.extended_actions = extended_actions
         self.actions = MiniGridEnv.Actions if not extended_actions \
                             else MiniGridEnv.ExtendedActions
@@ -1273,6 +1339,7 @@ class MiniGridEnv(gym.Env):
 
         # Process occluders and visibility
         # Note that this incurs some performance cost
+        grid.default_vis = self.default_vis
         if not self.see_through_walls:
             vis_mask = grid.process_vis(agent_pos=(self.agent_view_size // 2 , self.agent_view_size - 1))
         else:

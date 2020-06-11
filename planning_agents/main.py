@@ -29,7 +29,7 @@ if save:
 ## Main code
 #########################
 env = gym.make("MiniGrid-NumpyMapMinecraftUSAR-v0")
-env.agent_view_size = 9
+env.agent_view_size = 17
 env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PreEmptiveAgentLeft(env) if args.agenttype == 0 else PreEmptiveAgentRight(env)
