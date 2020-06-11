@@ -238,6 +238,17 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         obs, reward, done, info = MiniGridEnv.step(self, action)
         cur_cell = tuple(self.agent_pos)
 
+        # Make announcements here
+        if (self.time % (SECONDS_TO_STEPS * 60)) == 0:
+            print('-'*50)
+            print('{} minutes elapsed.'.format(self.time / SECONDS_TO_STEPS / 60))
+            print('-'*50)
+
+        if (self.time == self.victimlifetime):
+            print('-'*50)
+            print('425 seconds elapsed. All yellow victims have died.'.format(self.time / SECONDS_TO_STEPS / 60))
+            print('-'*50)
+
         # Check for dog beeps
         bark = -1
         box = self.roomViews.get(cur_cell)
