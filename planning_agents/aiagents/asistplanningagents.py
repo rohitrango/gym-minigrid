@@ -445,7 +445,7 @@ class PlanAgent:
         self.update(obs, info)
         self.check_safe_plan()
         if self.plan == []:
-            print("Updating plan")
+            #print("Updating plan")
             self.update_plan()
         try:
             #if self.plan[-1] != 'toggle':
@@ -581,7 +581,7 @@ class PlanAgent:
         # The location should not be empty
         assert loc is not None
         self._subgoal = loc
-        print("Plan is {}".format(self._current_plan))
+        #print("Plan is {}".format(self._current_plan))
         # Make a plan to that location
         self.plan = self.astar(loc)
         return None

@@ -7,7 +7,12 @@ from gym_minigrid import preprocessing
 
 
 RESOURCES_DIR = (Path(__file__).parent / './resources').resolve()
+SECONDS_TO_STEPS = 4
 
+# Use step size
+# 1 second = 4 steps (because we have walking speed of agent = 4.3m/s = which means it covers 4 blocks in 1 second = 4 steps in 1 second)
+# 5 minutes: 4 * 300 = 1200 steps
+# 10 minutes: 4 * 600 = 2400 steps
 
 class NumpyMapMinecraftUSAR(MiniGridEnv):
 
@@ -50,9 +55,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                 'white': 0,
                 'red':0,
         }
-        #self.victimlifetime = None
-        self.victimlifetime = 500
-        super().__init__(grid_size=50, max_steps=1000, agent_view_size=7, default_vis=False)
+        self.victimlifetime = 300 * SECONDS_TO_STEPS
+        super().__init__(grid_size=50, max_steps=int(SECONDS_TO_STEPS * 600), agent_view_size=7, default_vis=False)
 
 
     def _get_filtered_map(self, grid):
@@ -95,6 +99,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         self.wallmap = self._get_filtered_map('wall') + self._get_filtered_map('unseen')
         self.doormap = self._get_filtered_map('door')
 
+        colornum = [10, 17]
+
         # Put entities in the grid
         for mc_i in range(0, self.array.shape[0]):
             for mc_j in range(0, self.array.shape[1] ):
@@ -112,7 +118,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                     for entity_class in WorldObj.__subclasses__():
                         # the class name needs to be lowercase (not sentence case)
                         if entity_name == entity_class.__name__.casefold():
-                            # print(entity_index, entity_name, entity_color, entity_toggletime)
+                            # If color is given in the npy file
                             if entity_color != '':
                                 if entity_class == Goal and entity_color in ['yellow', 'green']:
                                     if entity_color == 'yellow':
@@ -127,12 +133,21 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                                     self.put_obj(entity_class(color=entity_color), mg_j, mg_i)
                             else:
                                 if entity_class == Goal:
-                                    vcolor = np.random.choice(['yellow', 'green'])
+                                    # Color is not given, just use color as per probability
+                                    p = np.array(colornum)
+                                    p = p*1.0 / p.sum()
+                                    # Sample a color
+                                    vcolor = np.random.choice(['yellow', 'green'], p=p)
+
+                                    # Update color numbers remaining
                                     if vcolor == 'yellow':
+                                        colornum[0] -= 1
                                         self.numyellow += 1
                                     elif vcolor == 'green':
+                                        colornum[1] -= 1
                                         self.numgreen += 1
                                     self.victimcount += 1
+
                                     self.put_obj(entity_class(color=vcolor, toggletimes=self.toggletimes_mapping[vcolor], triage_color='white'), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
@@ -273,6 +288,10 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                 if cell is not None and cell.type == 'goal' and cell.color == 'yellow':
                     self.victimcount -= 1
                     self.put_obj(Goal('red', toggletimes=0), x1, y1)
+
+        # If time is up
+        if self.steps_remaining <= 0:
+            done = True
 
         '''
         if action == self.actions.forward and False:

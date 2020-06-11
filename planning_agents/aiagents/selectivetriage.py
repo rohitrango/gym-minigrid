@@ -21,7 +21,7 @@ class SelectiveAgent(PlanAgent):
 
     def _get_preferences(self):
         # This is where we should focus on yellow ones
-        if self.time <= self.victimlifetime:
+        if self.time <= self.victimlifetime and self.numyellow > 0:
             return ['goal yellow', 'explore']
         else:
             self.victimcolor = ['yellow', 'green']
@@ -51,7 +51,7 @@ class SelectiveAgentV1(PlanAgent):
         ent = -belief * np.log(1e-100 + belief)
         ent = ent.sum(2)
 
-        if self.time <= self.victimlifetime:
+        if self.time <= self.victimlifetime and self.numyellow > 0:
             return ['goal yellow', 'explore']
         else:
             self.victimcolor = []

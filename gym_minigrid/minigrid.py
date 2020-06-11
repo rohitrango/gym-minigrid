@@ -669,6 +669,7 @@ class Grid:
                 if cell and not cell.see_behind():
                     break
 
+            hideside = True
             # marching for right side
             for i in range(agent_pos[0]+1, grid.width):
                 for j in reversed(range(0, grid.height-1)):
@@ -684,7 +685,7 @@ class Grid:
 
                     if not cell and celladj:
                         break
-                    if not cell and cellbeside and False:
+                    if not cell and cellbeside and hideside:
                         break
                     mask[i, j] = True
 
@@ -703,7 +704,7 @@ class Grid:
 
                     if not cell and celladj:
                         break
-                    if not cell and cellbeside and False:
+                    if not cell and cellbeside and hideside:
                         break
                     mask[i, j] = True
 
