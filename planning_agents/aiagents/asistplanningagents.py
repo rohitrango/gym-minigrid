@@ -664,7 +664,7 @@ class PlanAgent:
             parent = list(parents[last[0], last[1]])
             parent = list(map(lambda x: int(x), parent))
             if parent == [-1, -1]:
-                assert last == src
+                assert last == src, (src, dst, last)
                 break
             seq.append(parent)
 

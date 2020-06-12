@@ -75,9 +75,35 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         obs['victimlifetime'] = self.victimlifetime
         obs['numyellow'] = self.numyellow
         obs['numgreen'] = self.numgreen
+        obs['remyellow'] = self.remyellow
+        obs['remgreen'] = self.remgreen
         obs['reward_yellow'] = self.colorbasedreward('yellow')
         obs['reward_green'] = self.colorbasedreward('green')
         return obs
+
+
+    def _perturb_victims(self, nmap, index, steps=4):
+        ''' Given map and index, perturb the locations of the victims '''
+        goalidx = 0
+        for k, v in index.items():
+            if v == 'goal':
+                goalidx = goalidx + (nmap == k).astype(int)
+        # given goals, perturb them
+        y, x = np.where(goalidx > 0)
+        for _y, _x in zip(y, x):
+            for step in range(steps):
+                choices = []
+                for dx in [-1, 1]:
+                    if index[nmap[_y, _x + dx]] in ['empty', 'box']:
+                        choices.append((_y, _x+dx))
+                    if index[nmap[_y+dx, _x]] in ['empty', 'box']:
+                        choices.append((_y+dx, _x))
+                if choices == []:
+                    break
+                ny, nx = choices[np.random.randint(len(choices))]
+                nmap[_y, _x], nmap[ny, nx] = nmap[ny, nx], nmap[_y, _x]
+                _y,_x = ny, nx
+        return nmap
 
 
     def _gen_grid(self, width, height):
@@ -91,10 +117,13 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
         self.time = 0
         self.numyellow = 0
         self.numgreen = 0
+        self.remyellow = 0
+        self.remgreen = 0
 
         # Create the grid
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
+        self.array = self._perturb_victims(self.array, self.index_mapping)
 
         # Save a wallgrid and doorgrid
         self.wallmap = self._get_filtered_map('wall') + self._get_filtered_map('unseen')
@@ -124,8 +153,10 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                                 if entity_class == Goal and entity_color in ['yellow', 'green']:
                                     if entity_color == 'yellow':
                                         self.numyellow += 1
+                                        self.remyellow += 1
                                     elif entity_color == 'green':
                                         self.numgreen += 1
+                                        self.remgreen += 1
                                     self.victimcount += 1
 
                                 if entity_class == Goal:
@@ -144,9 +175,11 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                                     if vcolor == 'yellow':
                                         colornum[0] -= 1
                                         self.numyellow += 1
+                                        self.remyellow += 1
                                     elif vcolor == 'green':
                                         colornum[1] -= 1
                                         self.numgreen += 1
+                                        self.remgreen += 1
                                     self.victimcount += 1
 
                                     self.put_obj(entity_class(color=vcolor, toggletimes=self.toggletimes_mapping[vcolor], triage_color='white'), mg_j, mg_i)
@@ -236,6 +269,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
     def step(self, action):
         self.time += 1
         obs, reward, done, info = MiniGridEnv.step(self, action)
+        reward = 0
         cur_cell = tuple(self.agent_pos)
 
         # Make announcements here
@@ -246,7 +280,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
 
         if (self.time == self.victimlifetime):
             print('-'*50)
-            print('425 seconds elapsed. All yellow victims have died.'.format(self.time / SECONDS_TO_STEPS / 60))
+            print('{} seconds elapsed. {} yellow victims have died.'.format(self.time / SECONDS_TO_STEPS, self.remyellow))
             print('-'*50)
 
         # Check for dog beeps
@@ -281,6 +315,12 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
                     reward = self.colorbasedreward(fwd_cell.prevcolor)
                     self.array[self.front_pos[1], self.front_pos[0]] = 9
                     self.victimcount -= 1
+                    # subtract from given prev color
+                    if fwd_cell.prevcolor == 'yellow':
+                        self.remyellow -= 1
+                    elif fwd_cell.prevcolor == 'green':
+                        self.remgreen -= 1
+
                     print("{} victims remaining".format(self.victimcount))
                     if self.victimcount == 0:
                         done = True
@@ -297,6 +337,7 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             y, x = np.where(wherevictims)
             for y1, x1 in zip(y, x):
                 cell = self.grid.get(x1, y1)
+                self.remyellow = 0
                 if cell is not None and cell.type == 'goal' and cell.color == 'yellow':
                     self.victimcount -= 1
                     self.put_obj(Goal('red', toggletimes=0), x1, y1)
@@ -322,6 +363,8 @@ class NumpyMapMinecraftUSAR(MiniGridEnv):
             elif cur_cell != None and cur_cell.type == 'goal':
                 done = False
         '''
+        if reward != 0:
+            print('Reward: {}'.format(reward))
         return obs, reward, done, info
 
 
@@ -343,6 +386,8 @@ class USARLevel1(NumpyMapMinecraftUSAR):
         self.time = 0
         self.numyellow = 0
         self.numgreen = 0
+        self.remyellow = 0
+        self.remgreen = 0
         # Load the array
         self.array = np.load(self.numpyFile)
         self.array = preprocessing.preprocess_connected_components(self.array, self.index_mapping)
@@ -396,8 +441,10 @@ class USARLevel1(NumpyMapMinecraftUSAR):
                                     vcolor = np.random.choice(['yellow', 'green'])
                                     if vcolor == 'yellow':
                                         self.numyellow += 1
+                                        self.remyellow += 1
                                     else:
                                         self.numgreen += 1
+                                        self.remgreen += 1
                                     self.put_obj(entity_class(color=vcolor, toggletimes=self.toggletimes_mapping[vcolor], triage_color='white'), mg_j, mg_i)
                                 else:
                                     self.put_obj(entity_class(), mg_j, mg_i)
@@ -436,6 +483,8 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
         self.time = 0
         self.numyellow = 0
         self.numgreen = 0
+        self.remyellow = 0
+        self.remgreen = 0
 
         # Create the grid
         self.array = np.load(self.numpyFile)
@@ -475,11 +524,13 @@ class NumpyMapMinecraftUSARRandomVictims(NumpyMapMinecraftUSAR):
             self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
             self.numyellow += 1
+            self.remyellow += 1
         for _ in range(self.num_victims_green):
             pos = self.place_obj(Goal('green', toggletimes=self.toggletimes_mapping['green'], triage_color='white'))
             self.array[pos[1], pos[0]] = 3
             self.victimcount += 1
             self.numgreen += 1
+            self.remgreen += 1
 
         self.agent_pos = self.agent_start_pos
         self.grid.set(*self.agent_start_pos, None)

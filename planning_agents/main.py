@@ -49,10 +49,13 @@ print(OBJECT_TO_IDX)
 
 ## Save trajectories here
 expert_data = []
-current_episode_actions = dict(obs=[], act=[], rew=[])
+current_episode_actions = dict(obs=[], act=[], rew=[], fullmap=None)
+current_episode_actions['fullmap'] = env.get_full_map()
 episodes = 0
 num_steps = 0
 rew = 0
+
+total_rewards = []
 
 while episodes < args.num_episodes:
     #act = int(input("Enter action "))
@@ -70,15 +73,16 @@ while episodes < args.num_episodes:
         print(info)
     num_steps += 1
     if done:
-        print1("Episode {} done in {} steps".format(episodes + 1, num_steps))
+        print1("Episode {} done in {} steps with reward {}".format(episodes + 1, num_steps, np.sum(current_episode_actions['rew'])))
+        total_rewards.append(np.sum(current_episode_actions['rew']))
         episodes += 1
         num_steps = 0
         obs = env.reset()
         agent.reset(env.get_map(), obs)
         # Add this episode data to all episodes
-        if len(current_episode_actions['act']) <= 1000:
-            expert_data.append(current_episode_actions)
-        current_episode_actions = dict(obs=[], act=[], rew=[])
+        expert_data.append(current_episode_actions)
+        current_episode_actions = dict(obs=[], act=[], rew=[], fullmap=None)
+        current_episode_actions['fullmap'] = env.get_full_map()
 
     act = agent.predict(obs, info, rew)
     #print(obs['pos'], obs['dir'])
@@ -117,6 +121,7 @@ while episodes < args.num_episodes:
 
 if save:
     # Get filename
+    print1(total_rewards)
     print1(agent)
     filename = input('Enter filename: ')
     filename += '.pkl'
