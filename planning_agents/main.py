@@ -14,11 +14,75 @@ import argparse
 from aiagents import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Scouring>=1')
+parser.add_argument('--agenttype', type=int, required=True, help='Preemptive=0, Selective=1, SelectiveV1=2, MixedTime=3')
 parser.add_argument('--fullobs', type=int, default=0)
-parser.add_argument('--num_episodes', type=int, default=1000)
+parser.add_argument('--num_episodes', type=int, default=10)
+parser.add_argument('--procrastination_frac', type=float, default=0.8)
+parser.add_argument('--astardelta', type=int, default=0)
 parser.add_argument('--save', type=int, default=1)
 args = parser.parse_args()
+
+OBJECT_TO_IDX = {
+    'unseen'        : 0,
+    'empty'         : 1,
+    'wall'          : 2,
+    'floor'         : 3,
+    'door'          : 4,
+    'key'           : 5,
+    'ball'          : 6,
+    'box'           : 7,
+    'goal'          : 8,
+    'lava'          : 9,
+    'agent'         : 10,
+}
+COLOR_TO_IDX = {
+    'red'   : 0,
+    'green' : 1,
+    'blue'  : 2,
+    'purple': 3,
+    'yellow': 4,
+    'grey'  : 5,
+    'white' : 6,
+}
+
+def minimap_to_rgb(nmap):
+    '''
+    Given minimap, convert to rgb
+    '''
+    IDX_2_RGB = {
+        0: [217, 217, 217],
+        1: [0, 0, 0],
+        2: [165, 42, 42],
+        4: [0, 100, 0],
+        2: [173, 216, 230],
+        7 : [50, 50, 170],
+        8: [-1, -1, -1],
+        9: [255, 15, 0],
+        5: [255, 201, 102],
+        10: [0, 255, 255],
+    }
+    COL_2_RGB = {
+       0: [255, 0, 0],
+       1: [0, 255, 0],
+       6: [255, 255, 255],
+       4: [255, 255, 0],
+    }
+    def idx2rgb(idx, channel=0):
+        return IDX_2_RGB[idx][channel]
+
+    def col2rgb(idx, channel=0):
+        return COL_2_RGB[idx][channel]
+
+    obj, col, state = nmap.T
+    H, W = obj.shape
+    out = np.zeros((H, W, 3))
+    for i in range(3):
+        out[..., i] = np.vectorize(idx2rgb)(obj, i)
+    y, x = np.where(out[..., 0] < 0)
+    for i in range(3):
+        out[y, x, i] = np.vectorize(col2rgb)(col[y, x], i)
+    return out / 255.0
+
 
 # Set value of save here
 save=args.save
@@ -34,7 +98,19 @@ env = wrappers.AgentExtraInfoWrapper(env)
 
 #agent = PreEmptiveAgentLeft(env) if args.agenttype == 0 else PreEmptiveAgentRight(env)
 #agent = SelectiveAgentLeft(env) if args.agenttype == 0 else SelectiveAgentRight(env)
-agent = SelectiveAgentV1Left(env) if args.agenttype == 0 else SelectiveAgentV1Right(env)
+#agent = SelectiveAgentV1Left(env) if args.agenttype == 0 else SelectiveAgentV1Right(env)
+#agent = MixedTimeAgentLeft(env, procrastination_frac=args.procrastination_frac) if args.agenttype == 0 else MixedTimeAgentRight(env, procrastination_frac=args.procrastination_frac)
+agtype = args.agenttype
+if agtype == 0:
+    agent = PreEmptiveAgentLeft(env)
+elif agtype == 1:
+    agent = SelectiveAgentLeft(env)
+elif agtype == 2:
+    agent = SelectiveAgentV1Left(env)
+elif agtype == 3:
+    agent = MixedTimeAgentLeft(env, procrastination_frac=args.procrastination_frac)
+elif agtype == 4:
+    agent = MixedProximityAgentLeft(env, astardelta=args.astardelta)
 print(agent)
 
 # Init env and action
@@ -90,7 +166,9 @@ while episodes < args.num_episodes:
     if not save:
         plt.clf()
         plt.subplot(121)
-        img = env.render('rgb_array')
+        #img = env.render('rgb_array')
+        img = env.get_full_map()
+        img = minimap_to_rgb(img)
         plt.imshow(img)
         plt.title('Ground truth')
 
@@ -121,7 +199,9 @@ while episodes < args.num_episodes:
 
 if save:
     # Get filename
-    print1(total_rewards)
+    tr = total_rewards
+    print1(tr)
+    print1("Reward stats: Mean: {}, Std: {}, Min: {}, Max: {}".format(np.mean(tr), np.std(tr), np.min(tr), np.max(tr)))
     print1(agent)
     filename = input('Enter filename: ')
     filename += '.pkl'

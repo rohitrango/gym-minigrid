@@ -611,6 +611,11 @@ class PlanAgent:
         agdir = self.agent_dir
         #print(src, dst)
 
+        # If both are same then return a default
+        if src[0] == dst[0] and src[1] == dst[1]:
+            action_seq = ['left', 'left', 'forward', 'left', 'left', 'forward']
+            return action_seq[::-1]
+
         locations = []
         # Get belief and visited matrix
         belief = self.belief[A:-A, A:-A, :]
